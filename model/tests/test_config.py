@@ -46,11 +46,17 @@ def test_VER_002_core_config_keeps_staged_qos_disabled() -> None:
     ("mutation", "match"),
     [
         (
-            lambda doc: doc["parameters"].update({"MESH_X": 3}),
+            lambda doc: (
+                doc["parameters"].update({"MESH_X": 3}),
+                doc["mesh"]["dimensions"].update({"x": 3}),
+            ),
             "X_W must be the minimum positive width",
         ),
         (
-            lambda doc: doc["parameters"].update({"ROUTER_X": 2}),
+            lambda doc: (
+                doc["parameters"].update({"ROUTER_X": 2}),
+                doc["mesh"]["router_coordinate"].update({"x": 2}),
+            ),
             "ROUTER_X is outside MESH_X",
         ),
         (
@@ -62,6 +68,35 @@ def test_VER_002_core_config_keeps_staged_qos_disabled() -> None:
                 {"allow_same_cycle_zero_credit_bypass": True}
             ),
             "forbids same-cycle zero-credit bypass",
+        ),
+        (
+            lambda doc: doc["flit"].update({"encoding_frozen": False}),
+            "must be frozen",
+        ),
+        (
+            lambda doc: doc["flit"].update({"packet_id_width_bits": 15}),
+            "PKT_ID_W vs flit.packet_id_width_bits disagree",
+        ),
+        (
+            lambda doc: (
+                doc["parameters"].update({"VC_ID_W": 2}),
+                doc["virtual_channels"]["id_encoding"].update({"width_bits": 2}),
+            ),
+            "PORT_ID_W=3, VC_ID_W=1, QOS_W=2",
+        ),
+        (
+            lambda doc: doc["mesh"]["port_encoding"]["values"].update({"west": 5}),
+            "port IDs",
+        ),
+        (
+            lambda doc: doc["flit"]["fields"]["payload"].update({"msb": 102}),
+            "without gaps or overlap",
+        ),
+        (
+            lambda doc: doc["external_interface"]["signals"]["rx_flit"].update(
+                {"shape": ["PORTS", "VC_ID_W"]}
+            ),
+            "signal directions and shapes",
         ),
     ],
 )

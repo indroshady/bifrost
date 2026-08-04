@@ -73,6 +73,7 @@ def validate_cross_fields(config: dict[str, Any], errors: list[str]) -> None:
     flit = config["flit"]
     vcs = config["virtual_channels"]
     arbitration = config["arbitration"]
+    external_interface = config["external_interface"]
 
     comparisons = {
         "parameters.PORTS vs mesh.ports": (
@@ -119,6 +120,14 @@ def validate_cross_fields(config: dict[str, Any], errors: list[str]) -> None:
             parameters["QOS_WEIGHTS"],
             arbitration["qos_weights"],
         ),
+        "parameters.PORT_ID_W vs mesh.port_encoding.width_bits": (
+            parameters["PORT_ID_W"],
+            mesh["port_encoding"]["width_bits"],
+        ),
+        "parameters.VC_ID_W vs virtual_channels.id_encoding.width_bits": (
+            parameters["VC_ID_W"],
+            vcs["id_encoding"]["width_bits"],
+        ),
     }
     for label, (left, right) in comparisons.items():
         if left != right:
@@ -134,6 +143,118 @@ def validate_cross_fields(config: dict[str, Any], errors: list[str]) -> None:
         errors.append("ROUTER_X must be within the configured mesh")
     if not 0 <= parameters["ROUTER_Y"] < mesh_y:
         errors.append("ROUTER_Y must be within the configured mesh")
+
+    expected_port_values = {
+        "local": 0,
+        "north": 1,
+        "south": 2,
+        "east": 3,
+        "west": 4,
+    }
+    if mesh["ports"] != list(expected_port_values):
+        errors.append("physical port order must be Local, North, South, East, West")
+    if mesh["port_encoding"]["values"] != expected_port_values:
+        errors.append("physical port IDs must encode Local..West as 0..4")
+    port_width = parameters["PORT_ID_W"]
+    valid_port_ids = set(expected_port_values.values())
+    expected_invalid_ports = sorted(set(range(1 << port_width)) - valid_port_ids)
+    if mesh["port_encoding"]["invalid_values"] != expected_invalid_ports:
+        errors.append("reserved port IDs must contain every unused PORT_ID_W code")
+
+    if vcs["id_encoding"]["values"] != {"vc0": 0, "vc1": 1}:
+        errors.append("VC IDs must encode VC0=0 and VC1=1")
+    vc_width = parameters["VC_ID_W"]
+    if vc_width != max(1, (parameters["NUM_VCS"] - 1).bit_length()):
+        errors.append("VC_ID_W must be the minimum positive width for NUM_VCS")
+    expected_invalid_vcs = sorted(
+        set(range(1 << vc_width)) - set(range(parameters["NUM_VCS"]))
+    )
+    if vcs["id_encoding"]["invalid_values"] != expected_invalid_vcs:
+        errors.append("reserved VC IDs must contain every unused VC_ID_W code")
+
+    if flit["encoding_frozen"] is not True:
+        errors.append("Core v0.2 flit encoding must be frozen")
+    expected_field_order = (
+        "head",
+        "tail",
+        "destination_x",
+        "destination_y",
+        "source_x",
+        "source_y",
+        "packet_id",
+        "qos_class",
+        "payload",
+    )
+    fields = flit["fields"]
+    if tuple(fields) != expected_field_order:
+        errors.append("flit fields must use the frozen MSB-to-LSB order")
+    field_widths = {
+        "head": 1,
+        "tail": 1,
+        "destination_x": parameters["X_W"],
+        "destination_y": parameters["Y_W"],
+        "source_x": parameters["X_W"],
+        "source_y": parameters["Y_W"],
+        "packet_id": parameters["PKT_ID_W"],
+        "qos_class": parameters["QOS_W"],
+        "payload": flit["payload_width_bits"],
+    }
+    next_msb = parameters["FLIT_W"] - 1
+    for name in expected_field_order:
+        field = fields[name]
+        width = field_widths[name]
+        if field["width_bits"] != width:
+            errors.append(f"flit field {name} width disagrees with its parameter")
+        if field["msb"] != next_msb or field["lsb"] != field["msb"] - width + 1:
+            errors.append(f"flit field {name} creates a gap, overlap, or wrong range")
+        expected_meaning = (
+            "all_flits" if name in {"head", "tail", "payload"} else "headers_only"
+        )
+        if field["meaningful_on"] != expected_meaning:
+            errors.append(f"flit field {name} has wrong meaning scope")
+        next_msb = field["lsb"] - 1
+    if next_msb != -1:
+        errors.append("flit fields do not cover every bit in FLIT_W")
+    derived_payload = parameters["FLIT_W"] - (
+        2
+        + 2 * parameters["X_W"]
+        + 2 * parameters["Y_W"]
+        + parameters["PKT_ID_W"]
+        + parameters["QOS_W"]
+    )
+    if flit["payload_width_bits"] != derived_payload or derived_payload <= 0:
+        errors.append("payload width must be the positive derived FLIT_W remainder")
+    if parameters["QOS_W"] != 2:
+        errors.append("QOS_W must reserve two header bits for four-class compatibility")
+
+    expected_signals = {
+        "clk": {"direction": "input", "shape": [1]},
+        "rst_n": {"direction": "input", "shape": [1]},
+        "port_enable": {"direction": "input", "shape": ["PORTS"]},
+        "rx_valid": {"direction": "input", "shape": ["PORTS"]},
+        "rx_flit": {"direction": "input", "shape": ["PORTS", "FLIT_W"]},
+        "rx_vc": {"direction": "input", "shape": ["PORTS", "VC_ID_W"]},
+        "tx_valid": {"direction": "output", "shape": ["PORTS"]},
+        "tx_flit": {"direction": "output", "shape": ["PORTS", "FLIT_W"]},
+        "tx_vc": {"direction": "output", "shape": ["PORTS", "VC_ID_W"]},
+        "credit_out_valid": {"direction": "output", "shape": ["PORTS"]},
+        "credit_out_vc": {"direction": "output", "shape": ["PORTS", "VC_ID_W"]},
+        "credit_in_valid": {"direction": "input", "shape": ["PORTS"]},
+        "credit_in_vc": {"direction": "input", "shape": ["PORTS", "VC_ID_W"]},
+    }
+    if external_interface["signals"] != expected_signals:
+        errors.append("external signal directions or logical shapes disagree")
+    if external_interface["port_array_order"] != "mesh.ports":
+        errors.append("external port arrays must use mesh.ports ordering")
+    if external_interface["transfer_edge"] != "rising":
+        errors.append("external transfers must occur on the rising edge")
+    if (
+        external_interface["port_dimension"] != "unpacked"
+        or external_interface["data_dimensions"] != "packed"
+    ):
+        errors.append("external interface dimensions must use unpacked ports and packed data")
+    if external_interface["has_rx_ready"] or external_interface["has_tx_ready"]:
+        errors.append("credit-controlled Core interface has no ready sidebands")
 
     if arbitration["qos_enabled"]:
         errors.append("Core profile must not enable QoS")

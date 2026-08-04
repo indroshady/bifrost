@@ -5,7 +5,7 @@
 **Design under test:** Bifröst NoC Router  
 **Revision:** 0.2  
 **Date:** August 03, 2026  
-**Status:** Implementation-ready core baseline with a staged QoS extension
+**Status:** Core v0.2 behavior and RTL interface/encoding contract frozen
 
 ---
 
@@ -39,13 +39,16 @@ Each tile in the assumed accelerator contains a compute or memory subsystem, a n
 +--------+     +--------+     +--------+
 ```
 
-Bifröst provides five bidirectional logical ports:
+Bifröst provides five bidirectional logical ports in this fixed order and
+numeric encoding:
 
-- North
-- South
-- East
-- West
-- Local
+| Array index / port ID | Port |
+|---:|---|
+| 0 | Local |
+| 1 | North |
+| 2 | South |
+| 3 | East |
+| 4 | West |
 
 The Local port connects to the tile's network interface. The directional ports connect to adjacent routers.
 
@@ -73,7 +76,7 @@ Requirements labeled **Core** are mandatory for the first public release. Requir
 
 | Parameter | Core baseline | Exploration after core freeze |
 |---|---:|---|
-| Physical ports | 5 | Fixed: North, South, East, West, Local |
+| Physical ports | 5 | Fixed: Local, North, South, East, West |
 | Flit width | 128 bits | 64, 128, 256 bits |
 | Virtual channels per port | 2 | 1, 2, 4 |
 | Buffer depth per VC | 4 flits | 2, 4, 8 flits |
@@ -129,22 +132,55 @@ The design permits bubbles between flits of a packet. A header, body, or tail ma
 
 ## 6.2 Required Flit Information
 
-Every flit carries:
+The packed flit encoding is frozen from the most-significant bit downward. Bit
+ranges are inclusive:
 
-- Head indication
-- Tail indication
-- Payload
+| Field | Range | Width | Meaning |
+|---|---:|---:|---|
+| `head` | `[127]` | 1 | Header marker on every flit |
+| `tail` | `[126]` | 1 | Tail marker on every flit |
+| `destination_x` | `[125]` | `X_W=1` | Header only |
+| `destination_y` | `[124]` | `Y_W=1` | Header only |
+| `source_x` | `[123]` | `X_W=1` | Header only |
+| `source_y` | `[122]` | `Y_W=1` | Header only |
+| `packet_id` | `[121:106]` | `PKT_ID_W=16` | Header only |
+| `qos_class` | `[105:104]` | `QOS_W=2` | Header only; Core accepts only `2'b00` |
+| `payload` | `[103:0]` | `PAYLOAD_W=104` | Uninterpreted payload bits on every flit |
 
-A header flit additionally carries:
+The selected width arithmetic is:
 
-- Destination X coordinate
-- Destination Y coordinate
-- Source X coordinate
-- Source Y coordinate
-- Packet identifier
-- QoS class
+```text
+PAYLOAD_W = FLIT_W
+          - (HEAD_W + TAIL_W
+             + 2*X_W + 2*Y_W
+             + PKT_ID_W + QOS_W)
+          = 128 - (1 + 1 + 2 + 2 + 16 + 2)
+          = 104
+```
 
-Only header routing and QoS fields are architecturally meaningful. The router shall store the selected route, QoS class, and output-VC assignment as packet state so body and tail flits do not need to repeat routing information.
+For every supported parameter combination, `PAYLOAD_W` shall be derived by this
+formula and shall be positive. The fields shall cover exactly `[FLIT_W-1:0]`
+without gaps or overlap.
+
+The marker encodings are `2'b10` for a multi-flit header, `2'b00` for a body,
+`2'b01` for a tail, and `2'b11` for a single-flit packet. On a header or
+single-flit packet, all coordinate, packet-ID, and QoS fields are meaningful.
+On body and tail flits those header-only ranges are reserved, shall be zero at
+the source, and shall not be used by the router. Payload is meaningful and
+forwarded unchanged for every flit.
+
+The two QoS bits reserve representation for the staged four-class extension;
+they do not enable QoS behavior. Core sources shall encode class 0, Core routers
+shall reject header values 1 through 3 as protocol errors, and Core arbitration
+remains ordinary per-flit round robin.
+
+The semantic Python model deliberately continues to carry arbitrary Python
+payload objects. Its objects are not reinterpreted as 104-bit values. The
+independent integer pack/unpack helper is a representation contract for future
+RTL and verification only.
+
+The router shall store the selected route, QoS class, and output-VC assignment
+as packet state so body and tail flits do not repeat routing information.
 
 ## 6.3 Packet Identifier
 
@@ -402,15 +438,28 @@ After reset deassertion, both endpoints use the same `VC_DEPTH` and VC numbering
 
 # 14. External Interfaces
 
-The router uses one clock domain. Port arrays use the fixed ordering documented in the shared NoC package. A recommended order is Local, North, South, East, West; the exact encoding shall be frozen before RTL generation.
+The router uses one clock domain. Every port array uses the fixed outer unpacked
+dimension order Local, North, South, East, West. `PORT_ID_W` is the minimum
+positive width `ceil(log2(PORTS))=3`: Local=`3'd0`, North=`3'd1`,
+South=`3'd2`, East=`3'd3`, and West=`3'd4`. Codes 5 through 7 are reserved and
+invalid.
+
+`VC_ID_W` is the minimum positive width `ceil(log2(NUM_VCS))=1`. VC0 is
+`1'b0` and VC1 is `1'b1`; both one-bit patterns are valid. Any integer VC value
+outside 0 through 1 is invalid before truncation to the sideband.
+
+Logical shapes below list the unpacked port dimension first and any packed data
+width second. Thus `[PORTS][FLIT_W]` means one unpacked array entry per port,
+each containing a packed `FLIT_W` vector. This convention, the directions, and
+the absence of ready signals are part of the frozen contract.
 
 ## 14.1 Global Inputs
 
 | Signal | Direction | Description |
 |---|---|---|
-| `clk` | Input | Rising-edge router clock |
-| `rst_n` | Input | Active-low synchronous reset |
-| `port_enable[PORTS]` | Input | Enables each physical port; boundary ports may be disabled |
+| `clk` | Input `[1]` | Rising-edge router clock |
+| `rst_n` | Input `[1]` | Active-low synchronous reset |
+| `port_enable` | Input `[PORTS]` | Enables each physical port; boundary ports may be disabled |
 
 Router X/Y coordinates and mesh dimensions are compile-time parameters in Version 1 rather than runtime inputs.
 
@@ -420,9 +469,9 @@ For each physical input port:
 
 | Signal | Direction | Description |
 |---|---|---|
-| `rx_valid[port]` | Input | Indicates one incoming flit during this cycle |
-| `rx_flit[port]` | Input | Complete flit payload and header fields |
-| `rx_vc[port]` | Input | Destination input-VC identifier at this router |
+| `rx_valid` | Input `[PORTS]` | Indicates one incoming flit during this cycle |
+| `rx_flit` | Input `[PORTS][FLIT_W]` | Complete frozen packed flit |
+| `rx_vc` | Input `[PORTS][VC_ID_W]` | Destination input-VC identifier |
 
 There is no `rx_ready`. The upstream router may assert `rx_valid` only when it owns a registered credit for the selected VC. Signals are sampled on the rising clock edge. When `rx_valid` is asserted on an enabled port, Bifröst shall accept the flit on that edge.
 
@@ -434,9 +483,9 @@ For each physical output port:
 
 | Signal | Direction | Description |
 |---|---|---|
-| `tx_valid[port]` | Output | Indicates one outgoing flit during this cycle |
-| `tx_flit[port]` | Output | Complete flit being transferred |
-| `tx_vc[port]` | Output | Allocated downstream input-VC identifier |
+| `tx_valid` | Output `[PORTS]` | Indicates one outgoing flit during this cycle |
+| `tx_flit` | Output `[PORTS][FLIT_W]` | Complete frozen packed flit |
+| `tx_vc` | Output `[PORTS][VC_ID_W]` | Allocated downstream input-VC identifier |
 
 `tx_valid` shall assert only when the router has a positive registered credit for `tx_vc` on that output port. A transfer occurs on the rising edge when `tx_valid` is asserted; there is no downstream ready signal. The downstream router is required to accept every legal valid transfer.
 
@@ -448,8 +497,8 @@ For each physical input port:
 
 | Signal | Direction | Description |
 |---|---|---|
-| `credit_out_valid[port]` | Output | Returns one credit to the upstream sender |
-| `credit_out_vc[port]` | Output | Identifies the upstream VC receiving the credit |
+| `credit_out_valid` | Output `[PORTS]` | Returns one credit to the upstream sender |
+| `credit_out_vc` | Output `[PORTS][VC_ID_W]` | Identifies the upstream VC receiving the credit |
 
 A valid credit-return event corresponds to one local input FIFO entry released on that cycle.
 
@@ -459,21 +508,25 @@ For each physical output port:
 
 | Signal | Direction | Description |
 |---|---|---|
-| `credit_in_valid[port]` | Input | Indicates one returned downstream credit |
-| `credit_in_vc[port]` | Input | Identifies which output VC receives the credit |
+| `credit_in_valid` | Input `[PORTS]` | Indicates one returned downstream credit |
+| `credit_in_vc` | Input `[PORTS][VC_ID_W]` | Identifies which output VC receives the credit |
 
 A valid credit input increments exactly one output-VC credit counter unless the same cycle also transmits on that VC, in which case the implementation shall apply the net update correctly.
 
-## 14.6 Optional Observability Outputs
+## 14.6 Deferred Observability Outputs
 
-The synthesizable core may expose nonfunctional status outputs for verification and integration:
+The required Core v0.2 external interface ends with the credit sidebands above.
+The following nonfunctional outputs are deferred and are not part of this
+frozen RTL interface:
 
 - Router idle indication
 - Per-port activity indication
 - Sticky protocol-error indication
 - Sticky credit-error indication
 
-These outputs shall not participate in routing or flow-control decisions. Performance counters and a CSR interface are deferred.
+If added by a later independent contract revision, these outputs shall not
+participate in routing or flow-control decisions. Performance counters and a
+CSR interface are deferred.
 
 # 15. Reset and Initialization
 
@@ -723,6 +776,9 @@ Each candidate run shall preserve:
 | `MESH_X` | Number of mesh columns |
 | `MESH_Y` | Number of mesh rows |
 | `PKT_ID_W` | Packet identifier width |
+| `PORT_ID_W` | Minimum physical-port ID width; frozen to 3 |
+| `VC_ID_W` | Minimum virtual-channel ID width; frozen to 1 |
+| `QOS_W` | Header representation width; frozen to 2 while Core accepts class 0 only |
 | `QOS_CLASSES` | Number of supported QoS classes |
 | `QOS_WEIGHTS` | Weighted-round-robin service configuration |
 
@@ -756,6 +812,9 @@ These may become later extensions only after the baseline router is verified and
 | `FUNC-001` | Core | Forward legal packet flits without modification. |
 | `FUNC-002` | Core | Implement five physical ports in a 2D mesh router. |
 | `FUNC-003` | Core | Support wormhole packet switching and bubbles without packet interleaving in one VC. |
+| `ENC-001` | Core | Encode every Core flit with the frozen gap-free 128-bit field layout. |
+| `IFACE-001` | Core | Use the frozen physical-port and virtual-channel numeric encodings. |
+| `IFACE-002` | Core | Expose the frozen credit-controlled cycle interface shapes and sidebands. |
 | `ROUTE-001` | Core | Route all legal destinations using deterministic XY routing. |
 | `ROUTE-002` | Core | Deliver packets locally only at matching coordinates. |
 | `VC-001` | Core | Maintain independent FIFO and packet state per input VC. |

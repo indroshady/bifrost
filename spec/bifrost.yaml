@@ -15,11 +15,23 @@ parameters:
   MESH_X: 2
   MESH_Y: 2
   PKT_ID_W: 16
+  PORT_ID_W: 3
+  VC_ID_W: 1
+  QOS_W: 2
   QOS_CLASSES: 1
   QOS_WEIGHTS: [1]
 
 mesh:
   ports: [local, north, south, east, west]
+  port_encoding:
+    width_bits: 3
+    values:
+      local: 0
+      north: 1
+      south: 2
+      east: 3
+      west: 4
+    invalid_values: [5, 6, 7]
   routing: deterministic_xy
   north_is_increasing_y: true
   dimensions:
@@ -33,11 +45,64 @@ flit:
   width_bits: 128
   packet_id_width_bits: 16
   packet_mode: wormhole
-  encoding_frozen: false
+  encoding_frozen: true
+  payload_width_bits: 104
+  fields:
+    head:
+      msb: 127
+      lsb: 127
+      width_bits: 1
+      meaningful_on: all_flits
+    tail:
+      msb: 126
+      lsb: 126
+      width_bits: 1
+      meaningful_on: all_flits
+    destination_x:
+      msb: 125
+      lsb: 125
+      width_bits: 1
+      meaningful_on: headers_only
+    destination_y:
+      msb: 124
+      lsb: 124
+      width_bits: 1
+      meaningful_on: headers_only
+    source_x:
+      msb: 123
+      lsb: 123
+      width_bits: 1
+      meaningful_on: headers_only
+    source_y:
+      msb: 122
+      lsb: 122
+      width_bits: 1
+      meaningful_on: headers_only
+    packet_id:
+      msb: 121
+      lsb: 106
+      width_bits: 16
+      meaningful_on: headers_only
+    qos_class:
+      msb: 105
+      lsb: 104
+      width_bits: 2
+      meaningful_on: headers_only
+    payload:
+      msb: 103
+      lsb: 0
+      width_bits: 104
+      meaningful_on: all_flits
 
 virtual_channels:
   count_per_input: 2
   depth_flits: 4
+  id_encoding:
+    width_bits: 1
+    values:
+      vc0: 0
+      vc1: 1
+    invalid_values: []
 
 arbitration:
   switch_policy: round_robin
@@ -50,6 +115,28 @@ arbitration:
 flow_control:
   mode: registered_credit
   allow_same_cycle_zero_credit_bypass: false
+
+external_interface:
+  port_array_order: mesh.ports
+  port_dimension: unpacked
+  data_dimensions: packed
+  transfer_edge: rising
+  has_rx_ready: false
+  has_tx_ready: false
+  signals:
+    clk: {direction: input, shape: [1]}
+    rst_n: {direction: input, shape: [1]}
+    port_enable: {direction: input, shape: [PORTS]}
+    rx_valid: {direction: input, shape: [PORTS]}
+    rx_flit: {direction: input, shape: [PORTS, FLIT_W]}
+    rx_vc: {direction: input, shape: [PORTS, VC_ID_W]}
+    tx_valid: {direction: output, shape: [PORTS]}
+    tx_flit: {direction: output, shape: [PORTS, FLIT_W]}
+    tx_vc: {direction: output, shape: [PORTS, VC_ID_W]}
+    credit_out_valid: {direction: output, shape: [PORTS]}
+    credit_out_vc: {direction: output, shape: [PORTS, VC_ID_W]}
+    credit_in_valid: {direction: input, shape: [PORTS]}
+    credit_in_vc: {direction: input, shape: [PORTS, VC_ID_W]}
 
 clock:
   target_period_ns: 2.0

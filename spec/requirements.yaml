@@ -26,6 +26,21 @@ requirements:
     stage: implemented
     description: Support wormhole packet switching and bubbles without packet interleaving in one VC.
     verification_methods: [unit_test, simulation, formal]
+  - id: ENC-001
+    profile: core_v0_2
+    stage: implemented
+    description: Encode every Core flit with the frozen gap-free 128-bit field layout.
+    verification_methods: [unit_test, static_analysis, simulation]
+  - id: IFACE-001
+    profile: core_v0_2
+    stage: implemented
+    description: Use the frozen physical-port and virtual-channel numeric encodings.
+    verification_methods: [unit_test, static_analysis, simulation]
+  - id: IFACE-002
+    profile: core_v0_2
+    stage: implemented
+    description: Expose the frozen credit-controlled cycle interface shapes and sidebands.
+    verification_methods: [unit_test, static_analysis, simulation]
   - id: ROUTE-001
     profile: core_v0_2
     stage: implemented
