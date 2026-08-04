@@ -13,17 +13,17 @@ profiles:
 requirements:
   - id: FUNC-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Forward legal packet flits without modification.
-    verification_methods: [simulation, formal]
+    verification_methods: [unit_test, simulation, formal]
   - id: FUNC-002
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Implement five physical ports in a 2D mesh router.
-    verification_methods: [static_analysis, simulation]
+    verification_methods: [unit_test, static_analysis, simulation]
   - id: FUNC-003
     profile: core_v0_2
-    stage: partial
+    stage: implemented
     description: Support wormhole packet switching and bubbles without packet interleaving in one VC.
     verification_methods: [unit_test, simulation, formal]
   - id: ROUTE-001
@@ -38,22 +38,22 @@ requirements:
     verification_methods: [unit_test, formal]
   - id: VC-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Maintain independent FIFO and packet state per input VC.
     verification_methods: [unit_test, simulation, formal]
   - id: VC-002
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Allocate each output VC to at most one local packet.
     verification_methods: [unit_test, simulation, formal]
   - id: VC-003
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Hold output-VC ownership until the packet tail transmits.
     verification_methods: [unit_test, simulation, formal]
   - id: VC-004
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Release head+tail and multi-flit packet reservations exactly once.
     verification_methods: [unit_test, simulation, formal]
   - id: FLOW-001
@@ -68,9 +68,9 @@ requirements:
     verification_methods: [unit_test, formal]
   - id: FLOW-003
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Return exactly one credit for each released input entry.
-    verification_methods: [simulation, formal]
+    verification_methods: [unit_test, simulation, formal]
   - id: FLOW-004
     profile: core_v0_2
     stage: implemented
@@ -78,12 +78,12 @@ requirements:
     verification_methods: [unit_test, formal]
   - id: ARB-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Grant at most one input to each physical output per cycle.
     verification_methods: [unit_test, simulation, formal]
   - id: ARB-002
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Serve each continuously eligible requester within the stated round-robin bound.
     verification_methods: [unit_test, simulation, formal]
   - id: QOS-001
@@ -98,19 +98,19 @@ requirements:
     verification_methods: [simulation, formal, performance_report]
   - id: PERF-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Sustain one flit per physical output per cycle.
-    verification_methods: [simulation, performance_report]
+    verification_methods: [unit_test, simulation, performance_report]
   - id: PERF-002
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Support concurrent transfers on nonconflicting outputs.
-    verification_methods: [simulation, formal]
+    verification_methods: [unit_test, simulation, formal]
   - id: PERF-003
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Meet four-cycle maximum unloaded router latency.
-    verification_methods: [simulation, performance_report]
+    verification_methods: [unit_test, simulation, performance_report]
   - id: DEAD-001
     profile: core_v0_2
     stage: planned
@@ -128,14 +128,14 @@ requirements:
     verification_methods: [simulation, power_report]
   - id: RST-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Flush all buffered and reserved traffic state on coordinated reset.
-    verification_methods: [simulation, formal]
+    verification_methods: [unit_test, simulation, formal]
   - id: VER-001
     profile: core_v0_2
-    stage: planned
+    stage: implemented
     description: Demonstrate no loss, duplication, corruption, or illegal reordering.
-    verification_methods: [simulation, formal]
+    verification_methods: [unit_test, simulation, formal]
   - id: VER-002
     profile: core_v0_2
     stage: implemented

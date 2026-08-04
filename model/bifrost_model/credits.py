@@ -1,4 +1,9 @@
-"""Registered-current-credit state transitions for one output VC."""
+"""Registered downstream-credit state for one output VC.
+
+Authorization always uses the current registered count. A return arriving in
+the same cycle may offset a send only when that current count is already
+positive; it can never provide a zero-credit combinational bypass.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,7 @@ class CreditProtocolError(ValueError):
 
 
 class CreditCounter:
-    """Bounded credit counter with exact simultaneous-event semantics."""
+    """Bounded counter implementing the Core v0.2 credit truth table."""
 
     def __init__(
         self,
@@ -48,9 +53,8 @@ class CreditCounter:
     def can_send(self) -> bool:
         return self._enabled and self._count > 0
 
-    def apply(self, *, send: bool, credit_return: bool) -> int:
-        """Apply one cycle and return the new registered credit count."""
-
+    def next_count(self, *, send: bool, credit_return: bool) -> int:
+        """Validate one cycle and return its next count without committing it."""
         if type(send) is not bool or type(credit_return) is not bool:
             raise CreditProtocolError("send and credit_return must be booleans")
         if not self._enabled and (send or credit_return):
@@ -65,5 +69,16 @@ class CreditCounter:
         next_count = self._count - int(send) + int(credit_return)
         if not 0 <= next_count <= self._depth:
             raise CreditProtocolError("credit update would exceed legal bounds")
+        return next_count
+
+    def apply(self, *, send: bool, credit_return: bool) -> int:
+        """Apply one cycle and return the new registered credit count."""
+
+        next_count = self.next_count(send=send, credit_return=credit_return)
         self._count = next_count
         return self._count
+
+    def reset(self) -> None:
+        """Restore an enabled link to full capacity and a disabled link to zero."""
+
+        self._count = self._depth if self._enabled else 0

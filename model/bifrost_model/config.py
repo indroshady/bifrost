@@ -1,4 +1,9 @@
-"""Typed loading and cross-field validation for the selected configuration."""
+"""Load the machine-readable Core v0.2 configuration into typed model state.
+
+JSON Schema catches document-shape errors first. ``BifrostConfig`` then checks
+relationships that span sections of the YAML and enforces the selected Core
+profile, including the deliberate absence of QoS behavior.
+"""
 
 from __future__ import annotations
 
@@ -53,7 +58,11 @@ def _integer_tuple(mapping: Mapping[str, Any], key: str, path: str) -> tuple[int
 
 @dataclass(frozen=True, slots=True)
 class BifrostConfig:
-    """Observable selections required by the Core v0.2 model."""
+    """Validated configuration values consumed by the architectural model.
+
+    The dataclass contains semantic parameters only. It does not assign a wire
+    encoding or expose implementation-specific RTL controls.
+    """
 
     profile: str
     ports: tuple[str, ...]
@@ -76,6 +85,10 @@ class BifrostConfig:
 
     @classmethod
     def from_mapping(cls, document: Mapping[str, Any]) -> "BifrostConfig":
+        """Build and cross-check a configuration from a parsed YAML mapping."""
+
+        # Parse each contract section explicitly so malformed values fail at
+        # their source path rather than being coerced by Python.
         design = _mapping(document.get("design"), "design")
         parameters = _mapping(document.get("parameters"), "parameters")
         mesh = _mapping(document.get("mesh"), "mesh")
@@ -123,6 +136,8 @@ class BifrostConfig:
         return config
 
     def _validate(self) -> None:
+        """Enforce cross-field and frozen-profile invariants."""
+
         if self.profile != "core_v0_2":
             raise ConfigError(f"unsupported profile {self.profile!r}")
         if self.ports != ("local", "north", "south", "east", "west"):
@@ -157,7 +172,11 @@ def load_config(
     path: str | Path,
     schema_path: str | Path | None = None,
 ) -> BifrostConfig:
-    """Load, schema-check, and type-check a Bifröst configuration."""
+    """Load, schema-check, and type-check a Bifröst configuration.
+
+    ``schema_path`` is injectable for validator tests; normal callers use the
+    schema adjacent to ``spec/bifrost.yaml``.
+    """
 
     config_path = Path(path)
     selected_schema = (
@@ -170,6 +189,8 @@ def load_config(
     if not isinstance(document, Mapping):
         raise ConfigError("configuration root must be a mapping")
 
+    # Schema diagnostics are collected and sorted to keep failures stable
+    # across runs and Python versions.
     schema = json.loads(selected_schema.read_text(encoding="utf-8"))
     validation_errors = sorted(
         Draft202012Validator(schema).iter_errors(document),
