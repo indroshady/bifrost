@@ -12,6 +12,58 @@ define a packed flit encoding, reproduce pipeline registers, enable the staged
 QoS policy, or expose candidate RTL implementation signals. The normative
 behavior remains defined by [`BIFROST_SPEC.md`](BIFROST_SPEC.md).
 
+## Architectural block diagram
+
+The diagram shows architectural state and event flow, not a required RTL
+pipeline. Blocks labeled per input or output are replicated across all five
+physical ports.
+
+```mermaid
+flowchart LR
+    RX["5 receive links<br/>flit + input VC"] --> FIFOS
+
+    subgraph INPUT["Input buffering and packet state"]
+        FIFOS["Per-input VC FIFOs<br/>5 ports x 2 VCs x 4 flits"]
+        ROUTE["Header inspection<br/>deterministic XY route"]
+        STATE["Per-input VC packet state<br/>cached route + output VC"]
+        FIFOS --> ROUTE
+        ROUTE --> STATE
+    end
+
+    subgraph CONTROL["Allocation and switch control"]
+        ALLOC["Per-output VC allocators<br/>ownership held until tail"]
+        ELIG["Request eligibility<br/>nonempty + route + owner + credit"]
+        OUT_ARB["Per-output per-flit<br/>round-robin arbiters"]
+        IN_ARB["Per-input conflict<br/>round-robin arbiters"]
+        STATE --> ALLOC
+        ALLOC --> STATE
+        STATE --> ELIG
+        ELIG --> OUT_ARB
+        OUT_ARB --> IN_ARB
+    end
+
+    subgraph DATAPATH["Crossbar datapath"]
+        XBAR["5 x 5 physical-port crossbar"]
+    end
+
+    FIFOS --> XBAR
+    IN_ARB --> XBAR
+    XBAR --> TX["5 transmit links<br/>flit + allocated output VC"]
+
+    CREDIT_IN["Downstream credit returns"] --> CREDITS
+    CREDITS["Registered credits<br/>per output port and VC"] --> ELIG
+    XBAR -->|"consume on transfer"| CREDITS
+    XBAR -->|"release input entry"| CREDIT_OUT["Upstream credit returns"]
+    XBAR -->|"tail releases reservation"| ALLOC
+    XBAR -->|"tail clears packet state"| STATE
+```
+
+An arriving header is buffered before it can request allocation. Once an output
+VC is allocated, the cached route and ownership remain valid across bubbles.
+Only a granted transfer dequeues a flit, consumes downstream credit, and returns
+upstream credit. A granted tail additionally releases the output VC and clears
+the packet state.
+
 ## Directory structure
 
 ```text
