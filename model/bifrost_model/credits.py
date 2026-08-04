@@ -48,9 +48,8 @@ class CreditCounter:
     def can_send(self) -> bool:
         return self._enabled and self._count > 0
 
-    def apply(self, *, send: bool, credit_return: bool) -> int:
-        """Apply one cycle and return the new registered credit count."""
-
+    def next_count(self, *, send: bool, credit_return: bool) -> int:
+        """Validate one cycle and return its next count without committing it."""
         if type(send) is not bool or type(credit_return) is not bool:
             raise CreditProtocolError("send and credit_return must be booleans")
         if not self._enabled and (send or credit_return):
@@ -65,5 +64,14 @@ class CreditCounter:
         next_count = self._count - int(send) + int(credit_return)
         if not 0 <= next_count <= self._depth:
             raise CreditProtocolError("credit update would exceed legal bounds")
+        return next_count
+
+    def apply(self, *, send: bool, credit_return: bool) -> int:
+        """Apply one cycle and return the new registered credit count."""
+
+        next_count = self.next_count(send=send, credit_return=credit_return)
         self._count = next_count
         return self._count
+
+    def reset(self) -> None:
+        self._count = self._depth if self._enabled else 0

@@ -1,28 +1,41 @@
 requirement_id,profile,verification_method,status,artifact,test_name,notes
+FUNC-001,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_FUNC_001_forward_without_modification,Cycle model forwards the exact semantic flit object.
 FUNC-001,core_v0_2,simulation,planned,verification/cocotb/tests/test_forwarding.py,test_FUNC_001_forward_without_modification,Requires integrated RTL and scoreboard.
+FUNC-002,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_FUNC_002_five_physical_ports_and_two_vcs,Covers all five physical ports and both independent VCs in the model.
 FUNC-002,core_v0_2,static_analysis,planned,rtl/bifrost_router.sv,,Requires the five-port RTL interface.
-FUNC-003,core_v0_2,unit_test,implemented,model/tests/test_flit.py,test_FUNC_003_legal_packet_marker_sequences,Implements the marker-sequence slice; integrated wormhole state remains planned.
+FUNC-003,core_v0_2,unit_test,implemented,model/tests/test_flit.py,test_FUNC_003_legal_packet_marker_sequences,Covers legal and invalid packet-marker transitions.
+FUNC-003,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_FUNC_003_multiflit_packet_bubbles_retain_route_and_order,Covers integrated wormhole state and bubbles in the cycle model.
 FUNC-003,core_v0_2,simulation,planned,verification/cocotb/tests/test_packets.py,test_FUNC_003_wormhole_bubbles_and_no_interleaving,Full router behavior is deferred.
 ROUTE-001,core_v0_2,unit_test,implemented,model/tests/test_routing.py,test_ROUTE_001_all_xy_relations,Covers all relative X/Y combinations and X-first precedence.
 ROUTE-002,core_v0_2,unit_test,implemented,model/tests/test_routing.py,test_ROUTE_002_local_only_at_matching_coordinates,Covers Local and nonmatching coordinates.
-VC-001,core_v0_2,unit_test,planned,model/tests/test_fifo.py,test_VC_001_independent_vc_state,Milestone 1 FIFO model.
+VC-001,core_v0_2,unit_test,implemented,model/tests/test_fifo.py,test_VC_001_independent_vc_state,Covers bounded independent per-VC FIFO and packet state.
+VC-002,core_v0_2,unit_test,implemented,model/tests/test_vc_allocator.py,test_VC_002_unique_output_vc_ownership,Covers unique output-VC ownership and allocation.
 VC-002,core_v0_2,formal,planned,verification/formal/properties/vc_ownership.sv,,Requires RTL allocation state.
+VC-003,core_v0_2,unit_test,implemented,model/tests/test_vc_allocator.py,test_VC_003_hold_ownership_until_tail,Covers packet-lifetime ownership and invalid early release.
 VC-003,core_v0_2,simulation,planned,verification/cocotb/tests/test_vc_lifecycle.py,test_VC_003_hold_ownership_until_tail,Requires integrated VC lifecycle.
+VC-004,core_v0_2,unit_test,implemented,model/tests/test_vc_allocator.py,test_VC_004_release_head_tail_and_multiflit_exactly_once,Covers tail-gated exact-once release for both packet forms.
 VC-004,core_v0_2,formal,planned,verification/formal/properties/vc_release.sv,,Requires RTL allocation state.
 FLOW-001,core_v0_2,unit_test,implemented,model/tests/test_credits.py,test_FLOW_001_send_requires_registered_credit,Covers zero-credit send rejection including same-cycle return.
 FLOW-002,core_v0_2,unit_test,implemented,model/tests/test_credits.py,test_FLOW_002_credit_boundaries,Covers construction and update underflow/overflow boundaries.
+FLOW-003,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_FLOW_003_one_upstream_credit_per_released_input_entry,Covers one upstream return per successful input dequeue.
 FLOW-003,core_v0_2,formal,planned,verification/formal/properties/credit_return.sv,,Requires FIFO dequeue and upstream credit interface.
 FLOW-004,core_v0_2,unit_test,implemented,model/tests/test_credits.py,test_FLOW_004_all_simultaneous_events_at_boundary_counts,Covers all send/return combinations at 0 1 and VC_DEPTH.
+ARB-001,core_v0_2,unit_test,implemented,model/tests/test_arbitration.py,test_ARB_001_at_most_one_eligible_winner,Covers one-hot-or-zero deterministic grants.
 ARB-001,core_v0_2,formal,planned,verification/formal/properties/grants.sv,,Requires RTL arbiter.
-ARB-002,core_v0_2,unit_test,planned,model/tests/test_arbitration.py,test_ARB_002_round_robin_bound,Milestone 1 arbitration model.
+ARB-002,core_v0_2,unit_test,implemented,model/tests/test_arbitration.py,test_ARB_002_round_robin_bound,Covers the successful-transmission service bound.
 QOS-001,qos_extension_v0_2,simulation,planned,verification/cocotb/tests/test_qos.py,test_QOS_001_weighted_service,Staged until all Core gates pass.
 QOS-002,qos_extension_v0_2,formal,planned,verification/formal/properties/qos_aging.sv,,Staged until all Core gates pass.
+PERF-001,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_PERF_001_continuous_packet_transmits_one_flit_per_cycle,Covers bubble-free continuous transfer with available credits.
 PERF-001,core_v0_2,performance_report,planned,results/baseline/metrics.json,,Requires implemented timed router.
+PERF-002,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_PERF_002_nonconflicting_outputs_transfer_concurrently,Covers simultaneous transfers on independent inputs and outputs.
 PERF-002,core_v0_2,simulation,planned,verification/cocotb/tests/test_concurrency.py,test_PERF_002_nonconflicting_outputs,Requires integrated RTL.
+PERF-003,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_PERF_003_unloaded_latency_is_within_four_cycles,Covers the model's two-step allocation latency.
 PERF-003,core_v0_2,performance_report,planned,results/baseline/metrics.json,,Requires cycle-level latency measurement.
 DEAD-001,core_v0_2,design_review,planned,docs/architecture.md,,Requires reviewed channel-dependency argument.
 TIM-001,core_v0_2,timing_report,planned,results/baseline/metrics.json,,Requires post-route timing.
 PWR-001,core_v0_2,power_report,planned,results/baseline/metrics.json,,Requires activity-based power analysis.
+RST-001,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_RST_001_reset_flushes_traffic_reservations_history_and_credits,Covers coordinated reset of all architectural model state.
 RST-001,core_v0_2,formal,planned,verification/formal/properties/reset.sv,,Requires integrated RTL state.
+VER-001,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_VER_001_packet_conservation_and_order_seed_B1F205E,Deterministic random conservation and ordering test records seed 0xB1F205E.
 VER-001,core_v0_2,simulation,planned,verification/cocotb/tests/test_end_to_end.py,test_VER_001_packet_conservation,Requires model-based scoreboard.
 VER-002,core_v0_2,static_analysis,implemented,scripts/validate_spec.py,,Cross-file validation preserves an explicit independent oracle contract.

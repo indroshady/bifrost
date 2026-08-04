@@ -1,9 +1,9 @@
 # Bifröst NoC Router
 
 Bifröst is a parameterized, wormhole-switched router for a rectangular 2D
-network-on-chip. This repository currently contains the Milestone 0 contract
-and an executable Python model for the observable Core v0.2 flit-marker,
-deterministic-XY-routing, and registered-credit behavior.
+network-on-chip. This repository contains the accepted Milestone 0 contract
+and the complete Milestone 1 Python architectural oracle for observable Core
+v0.2 behavior.
 
 The normative source is [`spec/BIFROST_SPEC.md`](spec/BIFROST_SPEC.md).
 Machine-readable configuration and requirement traceability live beside it in
@@ -41,19 +41,20 @@ its traceability requirements remain staged.
 
 ## Current milestone
 
-Milestone 0 includes:
+Milestone 1 includes:
 
 - JSON-Schema-validated configuration and cross-file traceability checks.
 - Typed semantic flit and packet-marker validation.
-- Deterministic XY routing, where increasing Y routes North.
-- Exact registered-credit state transitions and boundary checks.
-- Targeted unit tests linked to requirement IDs.
+- Bounded independent input-VC FIFOs and deterministic XY route caching.
+- Packet-lifetime output-VC allocation with exact tail and head+tail release.
+- Per-flit round-robin arbitration and concurrent nonconflicting transfers.
+- Cycle-level crossbar, registered-credit, reset, and protocol-error behavior.
+- Requirement-linked directed tests and a recorded-seed conservation test.
 
-RTL, integrated FIFO/allocator/arbitration/router models, simulation, formal
-proof, synthesis, PPA evidence, mesh studies, QoS, and agentic optimization are
-deliberately excluded from this commit. The PDF rendering and architecture SVG
-listed in the implementation plan were not provided and are deferred; no
-placeholder or fabricated artifact is committed.
+The model is an architectural oracle and intentionally does not mirror future
+RTL signals or freeze a wire encoding. RTL, RTL simulation, formal proof,
+synthesis, PPA evidence, mesh studies, QoS, and agentic optimization remain
+deferred; no placeholder or fabricated artifact is committed.
 
 ## Setup and commands
 
