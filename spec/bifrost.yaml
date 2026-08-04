@@ -1,0 +1,60 @@
+design:
+  name: bifrost_router
+  spec_revision: "0.2"
+  profile: core_v0_2
+
+parameters:
+  PORTS: 5
+  FLIT_W: 128
+  NUM_VCS: 2
+  VC_DEPTH: 4
+  X_W: 1
+  Y_W: 1
+  ROUTER_X: 0
+  ROUTER_Y: 0
+  MESH_X: 2
+  MESH_Y: 2
+  PKT_ID_W: 16
+  QOS_CLASSES: 1
+  QOS_WEIGHTS: [1]
+
+mesh:
+  ports: [local, north, south, east, west]
+  routing: deterministic_xy
+  north_is_increasing_y: true
+  dimensions:
+    x: 2
+    y: 2
+  router_coordinate:
+    x: 0
+    y: 0
+
+flit:
+  width_bits: 128
+  packet_id_width_bits: 16
+  packet_mode: wormhole
+  encoding_frozen: false
+
+virtual_channels:
+  count_per_input: 2
+  depth_flits: 4
+
+arbitration:
+  switch_policy: round_robin
+  granularity: per_flit
+  qos_enabled: false
+  qos_classes: 1
+  qos_weights: [1]
+  aging_enabled: false
+
+flow_control:
+  mode: registered_credit
+  allow_same_cycle_zero_credit_bypass: false
+
+clock:
+  target_period_ns: 2.0
+
+reset:
+  active_level: low
+  style: synchronous
+  coordinated_links: true

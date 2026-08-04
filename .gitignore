@@ -1,0 +1,37 @@
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Simulation and waveforms
+sim_build/
+obj_dir/
+*.vcd
+*.fst
+*.wlf
+
+# Formal
+verification/formal/**/engine_*/
+verification/formal/**/model/
+verification/formal/**/*.log
+
+# Synthesis and implementation
+work/
+flow/**/runs/
+*.netlist.v
+*.sdf
+*.spef
+*.def
+*.odb
+reports/
+logs/
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/insen_microsoft/bifrost/spec/schema/bifrost.schema.json",
+  "title": "Bifrost Core v0.2 selected configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "design",
+    "parameters",
+    "mesh",
+    "flit",
+    "virtual_channels",
+    "arbitration",
+    "flow_control",
+    "clock",
+    "reset"
+  ],
+  "properties": {
+    "design": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "spec_revision", "profile"],
+      "properties": {
+        "name": {"const": "bifrost_router"},
+        "spec_revision": {"const": "0.2"},
+        "profile": {"const": "core_v0_2"}
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "PORTS",
+        "FLIT_W",
+        "NUM_VCS",
+        "VC_DEPTH",
+        "X_W",
+        "Y_W",
+        "ROUTER_X",
+        "ROUTER_Y",
+        "MESH_X",
+        "MESH_Y",
+        "PKT_ID_W",
+        "QOS_CLASSES",
+        "QOS_WEIGHTS"
+      ],
+      "properties": {
+        "PORTS": {"const": 5},
+        "FLIT_W": {"const": 128},
+        "NUM_VCS": {"const": 2},
+        "VC_DEPTH": {"const": 4},
+        "X_W": {"type": "integer", "minimum": 1},
+        "Y_W": {"type": "integer", "minimum": 1},
+        "ROUTER_X": {"type": "integer", "minimum": 0},
+        "ROUTER_Y": {"type": "integer", "minimum": 0},
+        "MESH_X": {"type": "integer", "minimum": 1},
+        "MESH_Y": {"type": "integer", "minimum": 1},
+        "PKT_ID_W": {"type": "integer", "minimum": 1},
+        "QOS_CLASSES": {"const": 1},
+        "QOS_WEIGHTS": {
+          "type": "array",
+          "prefixItems": [{"const": 1}],
+          "minItems": 1,
+          "maxItems": 1
+        }
+      }
+    },
+    "mesh": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "ports",
+        "routing",
+        "north_is_increasing_y",
+        "dimensions",
+        "router_coordinate"
+      ],
+      "properties": {
+        "ports": {
+          "type": "array",
+          "prefixItems": [
+            {"const": "local"},
+            {"const": "north"},
+            {"const": "south"},
+            {"const": "east"},
+            {"const": "west"}
+          ],
+          "minItems": 5,
+          "maxItems": 5
+        },
+        "routing": {"const": "deterministic_xy"},
+        "north_is_increasing_y": {"const": true},
+        "dimensions": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": {
+            "x": {"type": "integer", "minimum": 1},
+            "y": {"type": "integer", "minimum": 1}
+          }
+        },
+        "router_coordinate": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x", "y"],
+          "properties": {
+            "x": {"type": "integer", "minimum": 0},
+            "y": {"type": "integer", "minimum": 0}
+          }
+        }
+      }
+    },
+    "flit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "width_bits",
+        "packet_id_width_bits",
+        "packet_mode",
+        "encoding_frozen"
+      ],
+      "properties": {
+        "width_bits": {"const": 128},
+        "packet_id_width_bits": {"type": "integer", "minimum": 1},
+        "packet_mode": {"const": "wormhole"},
+        "encoding_frozen": {"const": false}
+      }
+    },
+    "virtual_channels": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["count_per_input", "depth_flits"],
+      "properties": {
+        "count_per_input": {"const": 2},
+        "depth_flits": {"const": 4}
+      }
+    },
+    "arbitration": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "switch_policy",
+        "granularity",
+        "qos_enabled",
+        "qos_classes",
+        "qos_weights",
+        "aging_enabled"
+      ],
+      "properties": {
+        "switch_policy": {"const": "round_robin"},
+        "granularity": {"const": "per_flit"},
+        "qos_enabled": {"const": false},
+        "qos_classes": {"const": 1},
+        "qos_weights": {
+          "type": "array",
+          "prefixItems": [{"const": 1}],
+          "minItems": 1,
+          "maxItems": 1
+        },
+        "aging_enabled": {"const": false}
+      }
+    },
+    "flow_control": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "allow_same_cycle_zero_credit_bypass"],
+      "properties": {
+        "mode": {"const": "registered_credit"},
+        "allow_same_cycle_zero_credit_bypass": {"const": false}
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_period_ns"],
+      "properties": {
+        "target_period_ns": {"const": 2.0}
+      }
+    },
+    "reset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_level", "style", "coordinated_links"],
+      "properties": {
+        "active_level": {"const": "low"},
+        "style": {"const": "synchronous"},
+        "coordinated_links": {"const": true}
+      }
+    }
+  }
+}
