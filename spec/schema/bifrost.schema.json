@@ -12,6 +12,7 @@
     "virtual_channels",
     "arbitration",
     "flow_control",
+    "external_interface",
     "clock",
     "reset"
   ],
@@ -41,6 +42,9 @@
         "MESH_X",
         "MESH_Y",
         "PKT_ID_W",
+        "PORT_ID_W",
+        "VC_ID_W",
+        "QOS_W",
         "QOS_CLASSES",
         "QOS_WEIGHTS"
       ],
@@ -49,13 +53,16 @@
         "FLIT_W": {"const": 128},
         "NUM_VCS": {"const": 2},
         "VC_DEPTH": {"const": 4},
-        "X_W": {"type": "integer", "minimum": 1},
-        "Y_W": {"type": "integer", "minimum": 1},
-        "ROUTER_X": {"type": "integer", "minimum": 0},
-        "ROUTER_Y": {"type": "integer", "minimum": 0},
-        "MESH_X": {"type": "integer", "minimum": 1},
-        "MESH_Y": {"type": "integer", "minimum": 1},
-        "PKT_ID_W": {"type": "integer", "minimum": 1},
+        "X_W": {"const": 1},
+        "Y_W": {"const": 1},
+        "ROUTER_X": {"const": 0},
+        "ROUTER_Y": {"const": 0},
+        "MESH_X": {"const": 2},
+        "MESH_Y": {"const": 2},
+        "PKT_ID_W": {"const": 16},
+        "PORT_ID_W": {"const": 3},
+        "VC_ID_W": {"const": 1},
+        "QOS_W": {"const": 2},
         "QOS_CLASSES": {"const": 1},
         "QOS_WEIGHTS": {
           "type": "array",
@@ -70,6 +77,7 @@
       "additionalProperties": false,
       "required": [
         "ports",
+        "port_encoding",
         "routing",
         "north_is_increasing_y",
         "dimensions",
@@ -88,6 +96,19 @@
           "minItems": 5,
           "maxItems": 5
         },
+        "port_encoding": {
+          "const": {
+            "width_bits": 3,
+            "values": {
+              "local": 0,
+              "north": 1,
+              "south": 2,
+              "east": 3,
+              "west": 4
+            },
+            "invalid_values": [5, 6, 7]
+          }
+        },
         "routing": {"const": "deterministic_xy"},
         "north_is_increasing_y": {"const": true},
         "dimensions": {
@@ -95,8 +116,8 @@
           "additionalProperties": false,
           "required": ["x", "y"],
           "properties": {
-            "x": {"type": "integer", "minimum": 1},
-            "y": {"type": "integer", "minimum": 1}
+            "x": {"const": 2},
+            "y": {"const": 2}
           }
         },
         "router_coordinate": {
@@ -104,8 +125,8 @@
           "additionalProperties": false,
           "required": ["x", "y"],
           "properties": {
-            "x": {"type": "integer", "minimum": 0},
-            "y": {"type": "integer", "minimum": 0}
+            "x": {"const": 0},
+            "y": {"const": 0}
           }
         }
       }
@@ -117,22 +138,90 @@
         "width_bits",
         "packet_id_width_bits",
         "packet_mode",
-        "encoding_frozen"
+        "encoding_frozen",
+        "payload_width_bits",
+        "fields"
       ],
       "properties": {
         "width_bits": {"const": 128},
-        "packet_id_width_bits": {"type": "integer", "minimum": 1},
+        "packet_id_width_bits": {"const": 16},
         "packet_mode": {"const": "wormhole"},
-        "encoding_frozen": {"const": false}
+        "encoding_frozen": {"const": true},
+        "payload_width_bits": {"type": "integer", "minimum": 1},
+        "fields": {
+          "const": {
+            "head": {
+              "msb": 127,
+              "lsb": 127,
+              "width_bits": 1,
+              "meaningful_on": "all_flits"
+            },
+            "tail": {
+              "msb": 126,
+              "lsb": 126,
+              "width_bits": 1,
+              "meaningful_on": "all_flits"
+            },
+            "destination_x": {
+              "msb": 125,
+              "lsb": 125,
+              "width_bits": 1,
+              "meaningful_on": "headers_only"
+            },
+            "destination_y": {
+              "msb": 124,
+              "lsb": 124,
+              "width_bits": 1,
+              "meaningful_on": "headers_only"
+            },
+            "source_x": {
+              "msb": 123,
+              "lsb": 123,
+              "width_bits": 1,
+              "meaningful_on": "headers_only"
+            },
+            "source_y": {
+              "msb": 122,
+              "lsb": 122,
+              "width_bits": 1,
+              "meaningful_on": "headers_only"
+            },
+            "packet_id": {
+              "msb": 121,
+              "lsb": 106,
+              "width_bits": 16,
+              "meaningful_on": "headers_only"
+            },
+            "qos_class": {
+              "msb": 105,
+              "lsb": 104,
+              "width_bits": 2,
+              "meaningful_on": "headers_only"
+            },
+            "payload": {
+              "msb": 103,
+              "lsb": 0,
+              "width_bits": 104,
+              "meaningful_on": "all_flits"
+            }
+          }
+        }
       }
     },
     "virtual_channels": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["count_per_input", "depth_flits"],
+      "required": ["count_per_input", "depth_flits", "id_encoding"],
       "properties": {
         "count_per_input": {"const": 2},
-        "depth_flits": {"const": 4}
+        "depth_flits": {"const": 4},
+        "id_encoding": {
+          "const": {
+            "width_bits": 1,
+            "values": {"vc0": 0, "vc1": 1},
+            "invalid_values": []
+          }
+        }
       }
     },
     "arbitration": {
@@ -167,6 +256,31 @@
       "properties": {
         "mode": {"const": "registered_credit"},
         "allow_same_cycle_zero_credit_bypass": {"const": false}
+      }
+    },
+    "external_interface": {
+      "const": {
+        "port_array_order": "mesh.ports",
+        "port_dimension": "unpacked",
+        "data_dimensions": "packed",
+        "transfer_edge": "rising",
+        "has_rx_ready": false,
+        "has_tx_ready": false,
+        "signals": {
+          "clk": {"direction": "input", "shape": [1]},
+          "rst_n": {"direction": "input", "shape": [1]},
+          "port_enable": {"direction": "input", "shape": ["PORTS"]},
+          "rx_valid": {"direction": "input", "shape": ["PORTS"]},
+          "rx_flit": {"direction": "input", "shape": ["PORTS", "FLIT_W"]},
+          "rx_vc": {"direction": "input", "shape": ["PORTS", "VC_ID_W"]},
+          "tx_valid": {"direction": "output", "shape": ["PORTS"]},
+          "tx_flit": {"direction": "output", "shape": ["PORTS", "FLIT_W"]},
+          "tx_vc": {"direction": "output", "shape": ["PORTS", "VC_ID_W"]},
+          "credit_out_valid": {"direction": "output", "shape": ["PORTS"]},
+          "credit_out_vc": {"direction": "output", "shape": ["PORTS", "VC_ID_W"]},
+          "credit_in_valid": {"direction": "input", "shape": ["PORTS"]},
+          "credit_in_vc": {"direction": "input", "shape": ["PORTS", "VC_ID_W"]}
+        }
       }
     },
     "clock": {

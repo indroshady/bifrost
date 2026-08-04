@@ -6,6 +6,14 @@ FUNC-002,core_v0_2,static_analysis,planned,rtl/bifrost_router.sv,,Requires the f
 FUNC-003,core_v0_2,unit_test,implemented,model/tests/test_flit.py,test_FUNC_003_legal_packet_marker_sequences,Covers legal and invalid packet-marker transitions.
 FUNC-003,core_v0_2,unit_test,implemented,model/tests/test_router.py,test_FUNC_003_multiflit_packet_bubbles_retain_route_and_order,Covers integrated wormhole state and bubbles in the cycle model.
 FUNC-003,core_v0_2,simulation,planned,verification/cocotb/tests/test_packets.py,test_FUNC_003_wormhole_bubbles_and_no_interleaving,Full router behavior is deferred.
+ENC-001,core_v0_2,unit_test,implemented,model/tests/test_encoding.py,test_ENC_001_frozen_fields_cover_flit_without_gaps_or_overlap,Covers exact inclusive ranges width arithmetic and complete bit coverage.
+ENC-001,core_v0_2,unit_test,implemented,model/tests/test_encoding.py,test_ENC_001_pack_unpack_round_trip,Covers all four legal marker combinations and integer round trips.
+ENC-001,core_v0_2,simulation,planned,verification/cocotb/tests/test_flit_encoding.py,test_ENC_001_rtl_matches_frozen_encoding,Requires RTL.
+IFACE-001,core_v0_2,unit_test,implemented,model/tests/test_encoding.py,test_IFACE_001_port_order_width_and_numeric_encoding_are_frozen,Covers five port IDs and reserved encodings.
+IFACE-001,core_v0_2,unit_test,implemented,model/tests/test_encoding.py,test_IFACE_001_vc_width_and_numeric_encoding_are_frozen,Covers VC ID width and both valid values.
+IFACE-001,core_v0_2,static_analysis,planned,rtl/bifrost_pkg.sv,,Requires RTL package declarations.
+IFACE-002,core_v0_2,unit_test,implemented,model/tests/test_encoding.py,test_IFACE_002_external_cycle_interface_shapes_are_frozen,Covers every required signal direction and logical shape.
+IFACE-002,core_v0_2,static_analysis,planned,rtl/bifrost_router.sv,,Requires RTL interface declarations.
 ROUTE-001,core_v0_2,unit_test,implemented,model/tests/test_routing.py,test_ROUTE_001_all_xy_relations,Covers all relative X/Y combinations and X-first precedence.
 ROUTE-002,core_v0_2,unit_test,implemented,model/tests/test_routing.py,test_ROUTE_002_local_only_at_matching_coordinates,Covers Local and nonmatching coordinates.
 VC-001,core_v0_2,unit_test,implemented,model/tests/test_fifo.py,test_VC_001_independent_vc_state,Covers bounded independent per-VC FIFO and packet state.

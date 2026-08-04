@@ -7,10 +7,13 @@ v0.2 profile. It models behavior visible at router boundaries and to a
 verification scoreboard: accepted flits, packet state, routing, output-VC
 ownership, arbitration, transfers, credits, reset, and protocol violations.
 
-The model is intentionally independent of future RTL structure. It does not
-define a packed flit encoding, reproduce pipeline registers, enable the staged
-QoS policy, or expose candidate RTL implementation signals. The normative
-behavior remains defined by [`BIFROST_SPEC.md`](BIFROST_SPEC.md).
+The model is intentionally independent of future RTL structure. The separate
+`encoding.py` helper defines integer pack/unpack operations for the now-frozen
+wire contract, but the router oracle does not call it or reinterpret arbitrary
+Python payload objects as packed bits. The model does not reproduce pipeline
+registers, enable the staged QoS policy, or expose candidate RTL implementation
+signals. Normative behavior remains defined by
+[`BIFROST_SPEC.md`](BIFROST_SPEC.md).
 
 ## Directory structure
 
@@ -20,6 +23,7 @@ model/
 │   ├── __init__.py            Supported public API
 │   ├── config.py              Typed configuration loading and validation
 │   ├── flit.py                Semantic flits and packet-marker rules
+│   ├── encoding.py            Independent frozen integer wire representation
 │   ├── routing.py             Pure deterministic XY routing
 │   ├── credits.py             Registered downstream-credit counters
 │   ├── fifo.py                Bounded per-input-VC buffering
@@ -29,6 +33,7 @@ model/
 └── tests/                     Requirement-named pytest suite
     ├── test_config.py         Frozen profile and invalid configuration
     ├── test_flit.py           Flit metadata and packet-marker sequences
+    ├── test_encoding.py       Packed layout, IDs, shapes, and round trips
     ├── test_routing.py        XY direction and coordinate validation
     ├── test_credits.py        Credit truth table and boundary failures
     ├── test_fifo.py           FIFO order, bounds, independence, and reset
@@ -42,8 +47,9 @@ model/
 | File | Responsibility |
 |---|---|
 | `__init__.py` | Re-exports the supported model API so callers do not depend on private package layout. |
-| `config.py` | Loads `spec/bifrost.yaml`, validates it against JSON Schema, and checks cross-field Core v0.2 invariants. |
-| `flit.py` | Represents flits semantically and rejects illegal head/body/tail sequences without assigning wire bits. |
+| `config.py` | Loads `spec/bifrost.yaml`, validates it against JSON Schema, and checks typed cross-field Core v0.2 behavior and representation invariants. |
+| `flit.py` | Represents flits semantically and rejects illegal head/body/tail sequences without packing arbitrary payload objects. |
+| `encoding.py` | Packs and unpacks integer wire images, exposes frozen port/VC IDs, and rejects out-of-range or Core-illegal values independently of the router. |
 | `routing.py` | Computes the pure X-first deterministic route. Increasing Y is North. |
 | `credits.py` | Implements one bounded registered credit counter, including simultaneous send/return behavior and no zero-credit bypass. |
 | `fifo.py` | Stores one input VC in order and tracks receive-side packet boundaries independently from occupancy. |

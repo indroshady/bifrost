@@ -25,6 +25,8 @@ test commands are documented in [`spec/MODEL_GUIDE.md`](spec/MODEL_GUIDE.md).
 | `X_W` × `Y_W` | 1 × 1 bits |
 | `ROUTER_X`, `ROUTER_Y` | 0, 0 |
 | `PKT_ID_W` | 16 bits |
+| `PORT_ID_W` / `VC_ID_W` | 3 / 1 bits |
+| `QOS_W` | 2 representation bits; Core accepts class 0 only |
 | `QOS_CLASSES` | 1 |
 | `QOS_WEIGHTS` | `[1]` |
 | Routing | Deterministic XY |
@@ -32,32 +34,39 @@ test commands are documented in [`spec/MODEL_GUIDE.md`](spec/MODEL_GUIDE.md).
 | Reference clock | 2.0 ns |
 
 The mesh dimensions, coordinate widths, router location, and packet-ID width
-were required by the specification but not selected by its sample YAML. This
-repository selects concrete, internally consistent values for the executable
-Core profile. They are configuration choices subject to independent spec
-review, not invented wire-format allocations. Flits are represented
-semantically; no RTL bit encoding is defined yet.
+were required by the specification but not selected by its original sample
+YAML. This repository now freezes the selected Core profile and independent RTL
+representation contract.
 
-QoS is disabled in the Core profile. Accordingly, the selected configuration
-has one traffic class with unit weight. The four-class weighted/aged policy and
-its traceability requirements remain staged.
+The 128-bit flit layout is `HEAD[127]`, `TAIL[126]`, destination X/Y
+`[125:124]`, source X/Y `[123:122]`, packet ID `[121:106]`, QoS class
+`[105:104]`, and payload `[103:0]`. The fields are contiguous and sum to 128
+bits. Port order and IDs are Local=0, North=1, South=2, East=3, West=4; 5-7 are
+invalid. VC0=0 and VC1=1 use a one-bit sideband.
+
+QoS behavior is disabled in the Core profile. Accordingly, the selected
+configuration has one semantic traffic class with unit weight and accepts only
+encoded class 0. The two-bit field reserves compatibility with the staged
+four-class weighted/aged policy; it does not add a scheduler.
 
 ## Current milestone
 
 Milestone 1 includes:
 
 - JSON-Schema-validated configuration and cross-file traceability checks.
-- Typed semantic flit and packet-marker validation.
+- Typed semantic flit and packet-marker validation plus an independent integer
+  pack/unpack helper for the frozen representation.
 - Bounded independent input-VC FIFOs and deterministic XY route caching.
 - Packet-lifetime output-VC allocation with exact tail and head+tail release.
 - Per-flit round-robin arbitration and concurrent nonconflicting transfers.
 - Cycle-level crossbar, registered-credit, reset, and protocol-error behavior.
 - Requirement-linked directed tests and a recorded-seed conservation test.
 
-The model is an architectural oracle and intentionally does not mirror future
-RTL signals or freeze a wire encoding. RTL, RTL simulation, formal proof,
-synthesis, PPA evidence, mesh studies, QoS, and agentic optimization remain
-deferred; no placeholder or fabricated artifact is committed.
+The model remains an architectural oracle and intentionally does not mirror
+future RTL signals or reinterpret arbitrary Python payload objects as packed
+bits. RTL, RTL simulation, formal proof, synthesis, PPA evidence, mesh studies,
+QoS behavior, and agentic optimization remain deferred; no placeholder or
+fabricated RTL artifact is committed.
 
 ## Setup and commands
 
