@@ -1,4 +1,8 @@
-"""Pure deterministic XY routing for the Bifröst coordinate convention."""
+"""Pure deterministic XY routing for the Bifröst coordinate convention.
+
+The function has no router state and is shared by allocation logic and tests.
+Increasing Y means North, as frozen by Core v0.2.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +14,8 @@ class RoutingError(ValueError):
 
 
 class Port(str, Enum):
+    """Physical port names in the frozen package ordering."""
+
     LOCAL = "local"
     NORTH = "north"
     SOUTH = "south"
@@ -32,7 +38,11 @@ def route_xy(
     mesh_x: int,
     mesh_y: int,
 ) -> Port:
-    """Return the one legal X-first route; increasing Y is North."""
+    """Return the one legal X-first route; increasing Y is North.
+
+    Coordinates are validated before route selection so an out-of-mesh packet
+    fails as a protocol error instead of being sent toward a boundary.
+    """
 
     coordinates = {
         "current_x": _coordinate("current_x", current_x),
@@ -56,6 +66,7 @@ def route_xy(
                 f"{dimension_name}={coordinates[dimension_name]}"
             )
 
+    # Dimension ordering is the deadlock-relevant rule: exhaust X before Y.
     if destination_x > current_x:
         return Port.EAST
     if destination_x < current_x:

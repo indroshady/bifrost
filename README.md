@@ -10,6 +10,9 @@ Machine-readable configuration and requirement traceability live beside it in
 [`spec/`](spec/). The Markdown specification takes precedence if generated or
 curated documentation disagrees with it.
 
+The Python package layout, component responsibilities, cycle semantics, and
+test commands are documented in [`spec/MODEL_GUIDE.md`](spec/MODEL_GUIDE.md).
+
 ## Frozen selected configuration
 
 | Parameter | Core v0.2 selection |

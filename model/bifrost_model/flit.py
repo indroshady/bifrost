@@ -1,4 +1,9 @@
-"""Semantic flit representation and legal packet-marker validation."""
+"""Semantic flits and per-VC packet-marker validation.
+
+Flits intentionally carry Python payload objects instead of packed bits. This
+keeps the model independent of any future RTL wire encoding while preserving
+all fields that affect architectural behavior.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +17,8 @@ class FlitValidationError(ValueError):
 
 
 class PacketMarker(str, Enum):
+    """The four legal combinations of the architectural head/tail flags."""
+
     HEAD = "head"
     BODY = "body"
     TAIL = "tail"
@@ -19,6 +26,8 @@ class PacketMarker(str, Enum):
 
     @classmethod
     def from_flags(cls, *, head: bool, tail: bool) -> "PacketMarker":
+        """Translate strict boolean flags into one packet marker."""
+
         if type(head) is not bool or type(tail) is not bool:
             raise FlitValidationError("head and tail markers must be booleans")
         if head and tail:
@@ -81,7 +90,11 @@ class Flit:
 
 
 class PacketStreamValidator:
-    """Track marker legality for one input VC; bubbles require no state change."""
+    """Track receive-side packet legality for one input VC.
+
+    This state follows accepted arrivals, not FIFO occupancy. A packet may have
+    no currently buffered flit during a legal bubble and still remain active.
+    """
 
     def __init__(self) -> None:
         self._packet_active = False
@@ -91,6 +104,8 @@ class PacketStreamValidator:
         return self._packet_active
 
     def accept(self, flit: Flit) -> None:
+        """Accept one flit or raise without changing state on an invalid marker."""
+
         marker = flit.marker
         if not self._packet_active:
             if marker is PacketMarker.HEAD:
@@ -106,4 +121,6 @@ class PacketStreamValidator:
             self._packet_active = False
 
     def reset(self) -> None:
+        """Return the receive stream to its idle packet boundary."""
+
         self._packet_active = False

@@ -1,4 +1,9 @@
-"""Cycle-level architectural oracle for the Bifröst Core v0.2 router."""
+"""Cycle-level architectural oracle for the Bifröst Core v0.2 router.
+
+The model composes semantic components rather than mirroring a future RTL
+pipeline. ``step`` exposes only architecturally visible transfers, credit
+returns, errors, and state needed by scoreboards.
+"""
 
 from __future__ import annotations
 
@@ -20,6 +25,8 @@ class RouterProtocolError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class FlitArrival:
+    """One receive-link event sampled on the current cycle edge."""
+
     input_port: Port
     input_vc: int
     flit: Flit
@@ -27,12 +34,16 @@ class FlitArrival:
 
 @dataclass(frozen=True, slots=True)
 class DownstreamCredit:
+    """One registered credit returned by a downstream input VC."""
+
     output_port: Port
     output_vc: int
 
 
 @dataclass(frozen=True, slots=True)
 class FlitTransfer:
+    """One successful crossbar and output-link transfer."""
+
     output_port: Port
     output_vc: int
     input_port: Port
@@ -42,18 +53,24 @@ class FlitTransfer:
 
 @dataclass(frozen=True, slots=True)
 class UpstreamCredit:
+    """Credit returned because one local input FIFO entry was released."""
+
     input_port: Port
     input_vc: int
 
 
 @dataclass(frozen=True, slots=True)
 class CycleResult:
+    """All externally visible events produced by one model cycle."""
+
     transfers: tuple[FlitTransfer, ...] = ()
     upstream_credits: tuple[UpstreamCredit, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class InputVCState:
+    """Read-only packet-level route and output-VC state."""
+
     route: Port | None
     output_vc: int | None
 
@@ -64,12 +81,19 @@ class InputVCState:
 
 @dataclass(slots=True)
 class _MutableInputVCState:
+    """Internal writable counterpart to ``InputVCState``."""
+
     route: Port | None = None
     output_vc: int | None = None
 
 
 class BifrostRouter:
-    """Integrate buffering, routing, allocation, switching, and credits by cycle."""
+    """Integrate buffering, allocation, switching, and credits by cycle.
+
+    New headers use the required two-step allocate-then-traverse sequence.
+    Packet state survives FIFO bubbles, and tail transmission atomically
+    releases both cached route and output-VC ownership.
+    """
 
     def __init__(
         self,
@@ -88,6 +112,8 @@ class BifrostRouter:
         self._port_enable = self._validate_port_enable(port_enable)
         self._requester_count = len(self._ports) * config.num_vcs
 
+        # State is indexed by semantic (port, VC) tuples. This keeps the oracle
+        # readable and independent from packed hardware array encodings.
         self._fifos = {
             (port, vc): VirtualChannelFIFO(config.vc_depth)
             for port in self._ports
@@ -126,35 +152,51 @@ class BifrostRouter:
 
     @property
     def is_idle(self) -> bool:
+        """Return true when no buffered flit or packet reservation remains."""
+
         return all(fifo.empty for fifo in self._fifos.values()) and all(
             state.route is None for state in self._input_states.values()
         )
 
     def fifo_occupancy(self, input_port: Port, input_vc: int) -> int:
+        """Expose one input VC's buffered-flit count for scoreboards."""
+
         key = self._input_key(input_port, input_vc)
         return self._fifos[key].occupancy
 
     def input_state(self, input_port: Port, input_vc: int) -> InputVCState:
+        """Return an immutable snapshot of one input VC's packet state."""
+
         state = self._input_states[self._input_key(input_port, input_vc)]
         return InputVCState(route=state.route, output_vc=state.output_vc)
 
     def credit_count(self, output_port: Port, output_vc: int) -> int:
+        """Return the registered downstream credit count."""
+
         return self._credits[self._output_key(output_port, output_vc)].count
 
     def output_vc_owner(self, output_port: Port, output_vc: int) -> tuple[Port, int] | None:
+        """Decode one output VC's owner into an input-port/VC tuple."""
+
         port, vc = self._output_key(output_port, output_vc)
         owner = self._allocators[port].owner_of(vc)
         return None if owner is None else self._decode_owner(owner)
 
     def switch_arbiter_pointer(self, output_port: Port) -> int:
+        """Expose output arbitration history for reset and fairness checking."""
+
         port, _ = self._output_key(output_port, 0)
         return self._switch_arbiters[port].pointer
 
     def input_arbiter_pointer(self, input_port: Port) -> int:
+        """Expose physical-input matching history for reset checking."""
+
         port, _ = self._input_key(input_port, 0)
         return self._input_arbiters[port].pointer
 
     def allocator_pointers(self, output_port: Port) -> tuple[int, int]:
+        """Return requester and free-VC allocation pointers for one output."""
+
         port, _ = self._output_key(output_port, 0)
         allocator = self._allocators[port]
         return allocator.requester_pointer, allocator.vc_pointer
@@ -166,6 +208,13 @@ class BifrostRouter:
         downstream_credits: Iterable[DownstreamCredit] = (),
         reset: bool = False,
     ) -> CycleResult:
+        """Advance one synchronous cycle.
+
+        Transfers and allocation decisions use state registered before this
+        call. Therefore a newly arrived header cannot allocate immediately and
+        a newly allocated header cannot traverse in the same cycle.
+        """
+
         if type(reset) is not bool:
             raise RouterProtocolError("reset must be a boolean")
         selected_arrivals = tuple(arrivals)
@@ -176,8 +225,13 @@ class BifrostRouter:
             self.reset()
             return CycleResult()
 
+        # Validate every external event before mutating state. Credit updates
+        # receive a second all-counter preflight below for cycle atomicity.
         arrivals_by_port = self._validate_arrivals(selected_arrivals)
         credits_by_port = self._validate_downstream_credits(selected_credits)
+
+        # Both decisions observe pre-cycle state. This is what enforces the
+        # non-speculative allocate-then-traverse contract.
         transfers_by_output = self._select_transfers()
         allocations_by_output = self._allocation_eligibility()
 
@@ -189,12 +243,15 @@ class BifrostRouter:
             (credit.output_port, credit.output_vc): True
             for credit in credits_by_port.values()
         }
+        # Preflight the full credit matrix before any allocation or dequeue.
+        # A malformed return cannot leave a partially committed router cycle.
         for key, counter in self._credits.items():
             counter.next_count(
                 send=send_by_vc.get(key, False),
                 credit_return=return_by_vc.get(key, False),
             )
 
+        # Commit at most one new packet allocation per physical output.
         for output_port in self._ports:
             allocation = self._allocators[output_port].allocate(
                 allocations_by_output[output_port]
@@ -205,6 +262,8 @@ class BifrostRouter:
                 state.route = output_port
                 state.output_vc = allocation.output_vc
 
+        # Commit crossbar winners, advance arbitration only for real transfers,
+        # and release packet-level state exactly when a tail departs.
         upstream_credits: list[UpstreamCredit] = []
         for output_port in self._ports:
             transfer = transfers_by_output.get(output_port)
@@ -235,12 +294,14 @@ class BifrostRouter:
                 state.route = None
                 state.output_vc = None
 
+        # Apply the already validated simultaneous send/return truth table.
         for key, counter in self._credits.items():
             counter.apply(
                 send=send_by_vc.get(key, False),
                 credit_return=return_by_vc.get(key, False),
             )
 
+        # Arrivals are sampled on this edge but become candidates next cycle.
         for arrival in arrivals_by_port.values():
             self._fifos[(arrival.input_port, arrival.input_vc)].enqueue(arrival.flit)
 
@@ -261,6 +322,8 @@ class BifrostRouter:
         return CycleResult(transfers=transfers, upstream_credits=credits)
 
     def reset(self) -> None:
+        """Synchronously restore all architectural state to Core defaults."""
+
         for fifo in self._fifos.values():
             fifo.reset()
         for state in self._input_states.values():
@@ -354,6 +417,8 @@ class BifrostRouter:
             raise RouterProtocolError("QoS classes are disabled in Core v0.2")
 
     def _allocation_eligibility(self) -> dict[Port, tuple[bool, ...]]:
+        """Build per-output header requests from idle, nonempty input VCs."""
+
         eligible = {
             output_port: [False] * self._requester_count
             for output_port in self._ports
@@ -378,6 +443,9 @@ class BifrostRouter:
         return {port: tuple(values) for port, values in eligible.items()}
 
     def _select_transfers(self) -> dict[Port, FlitTransfer]:
+        """Match eligible input VCs to outputs without advancing pointers."""
+
+        # First, each output proposes its strict round-robin winner.
         proposals: dict[Port, int] = {}
         for output_port in self._ports:
             if not self._port_enable[output_port]:
@@ -395,7 +463,8 @@ class BifrostRouter:
             if winner is not None:
                 proposals[output_port] = winner
 
-        # Losing outputs deliberately do not fall back: every successful output
+        # Then each physical input accepts at most one proposed output. Losing
+        # outputs deliberately do not fall back: every successful output
         # transfer must honor its strict RR winner and bounded-service sequence.
         selected: dict[Port, FlitTransfer] = {}
         for input_port in self._ports:

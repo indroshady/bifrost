@@ -1,4 +1,9 @@
-"""Registered-current-credit state transitions for one output VC."""
+"""Registered downstream-credit state for one output VC.
+
+Authorization always uses the current registered count. A return arriving in
+the same cycle may offset a send only when that current count is already
+positive; it can never provide a zero-credit combinational bypass.
+"""
 
 from __future__ import annotations
 
@@ -8,7 +13,7 @@ class CreditProtocolError(ValueError):
 
 
 class CreditCounter:
-    """Bounded credit counter with exact simultaneous-event semantics."""
+    """Bounded counter implementing the Core v0.2 credit truth table."""
 
     def __init__(
         self,
@@ -74,4 +79,6 @@ class CreditCounter:
         return self._count
 
     def reset(self) -> None:
+        """Restore an enabled link to full capacity and a disabled link to zero."""
+
         self._count = self._depth if self._enabled else 0

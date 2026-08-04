@@ -1,4 +1,8 @@
-"""Executable architectural behavior for the Bifröst Core v0.2 profile."""
+"""Public API for the executable Bifröst Core v0.2 architectural model.
+
+The package exports semantic data types and independently testable components
+alongside :class:`BifrostRouter`, the cycle-level integration oracle.
+"""
 
 from .arbitration import ArbitrationError, RoundRobinArbiter
 from .config import BifrostConfig, ConfigError, load_config

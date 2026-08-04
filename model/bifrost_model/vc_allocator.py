@@ -1,4 +1,9 @@
-"""Packet-lifetime output-VC allocation for one physical output."""
+"""Packet-lifetime output-VC allocation for one physical output.
+
+Ownership and downstream credit availability are independent state. Allocation
+uses round-robin selection for both requesters and free VCs, then ownership is
+retained until the owning packet's transmitted tail explicitly releases it.
+"""
 
 from __future__ import annotations
 
@@ -14,12 +19,14 @@ class VCAllocationError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class VCAllocation:
+    """A successful binding between an input-VC owner and an output VC."""
+
     owner: int
     output_vc: int
 
 
 class OutputVCAllocator:
-    """Allocate one free output VC per decision and retain packet ownership."""
+    """Own the allocation table and fairness pointers for one output port."""
 
     def __init__(self, *, num_vcs: int, requester_count: int) -> None:
         if isinstance(num_vcs, bool) or not isinstance(num_vcs, int) or num_vcs < 1:
@@ -43,10 +50,14 @@ class OutputVCAllocator:
         return self._vc_pointer
 
     def owner_of(self, output_vc: int) -> int | None:
+        """Return the requester that owns ``output_vc``, if any."""
+
         self._validate_output_vc(output_vc)
         return self._owners[output_vc]
 
     def allocated_vc(self, owner: int) -> int | None:
+        """Return the single output VC held by ``owner``, if any."""
+
         self._validate_owner(owner)
         matches = [vc for vc, assigned in enumerate(self._owners) if assigned == owner]
         if len(matches) > 1:
@@ -54,6 +65,8 @@ class OutputVCAllocator:
         return matches[0] if matches else None
 
     def allocate(self, eligible: Sequence[bool]) -> VCAllocation | None:
+        """Allocate at most one free VC to one eligible requester."""
+
         selected = tuple(eligible)
         if len(selected) != self._requester_count:
             raise VCAllocationError(
@@ -65,6 +78,8 @@ class OutputVCAllocator:
             if requested and self.allocated_vc(owner) is not None:
                 raise VCAllocationError("an owner cannot request a second output VC")
 
+        # A missing free VC is not a protocol error; requesters remain pending
+        # and neither fairness pointer advances.
         free_vc = self._choose_free_vc()
         if free_vc is None:
             return None
@@ -83,6 +98,8 @@ class OutputVCAllocator:
         owner: int,
         tail_transmitted: bool,
     ) -> None:
+        """Release ownership after, and only after, a successful tail transfer."""
+
         self._validate_output_vc(output_vc)
         self._validate_owner(owner)
         if type(tail_transmitted) is not bool:
@@ -97,6 +114,8 @@ class OutputVCAllocator:
         self._owners[output_vc] = None
 
     def reset(self) -> None:
+        """Clear ownership and restore both round-robin pointers."""
+
         self._owners = [None] * self._num_vcs
         self._requester_arbiter.reset()
         self._vc_pointer = 0

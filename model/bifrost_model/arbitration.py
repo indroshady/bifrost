@@ -1,4 +1,9 @@
-"""Deterministic per-flit round-robin arbitration."""
+"""Deterministic per-flit round-robin arbitration.
+
+Selection and commitment are separate operations because router matching may
+reject an output's proposal due to a shared physical-input conflict. Only a
+transfer that actually commits is allowed to advance history.
+"""
 
 from __future__ import annotations
 
@@ -10,7 +15,7 @@ class ArbitrationError(ValueError):
 
 
 class RoundRobinArbiter:
-    """One-winner arbiter whose pointer advances only on a committed grant."""
+    """One-hot-or-zero arbiter with successful-grant-only pointer updates."""
 
     def __init__(self, requester_count: int) -> None:
         if (
@@ -31,6 +36,8 @@ class RoundRobinArbiter:
         return self._pointer
 
     def _validated(self, eligible: Sequence[bool]) -> tuple[bool, ...]:
+        """Normalize eligibility while rejecting implicit truthy values."""
+
         selected = tuple(eligible)
         if len(selected) != self._requester_count:
             raise ArbitrationError(
@@ -44,6 +51,8 @@ class RoundRobinArbiter:
         """Select a winner without changing history."""
 
         selected = self._validated(eligible)
+        # Search from the pointer and wrap exactly once, which makes the first
+        # eligible requester deterministic.
         for offset in range(self._requester_count):
             requester = (self._pointer + offset) % self._requester_count
             if selected[requester]:
@@ -62,10 +71,14 @@ class RoundRobinArbiter:
         self._pointer = (winner + 1) % self._requester_count
 
     def grant(self, eligible: Sequence[bool]) -> int | None:
+        """Choose and immediately commit a winner for standalone arbitration."""
+
         winner = self.choose(eligible)
         if winner is not None:
             self.record_grant(winner)
         return winner
 
     def reset(self) -> None:
+        """Restore the documented initial requester position."""
+
         self._pointer = 0

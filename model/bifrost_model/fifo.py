@@ -1,4 +1,9 @@
-"""Bounded input-VC FIFO behavior for the Bifröst Core v0.2 model."""
+"""Bounded input-VC buffering and receive-stream validation.
+
+Storage occupancy and packet-arrival state are intentionally separate. The
+FIFO may drain during a packet bubble while the receive stream still expects a
+body or tail flit.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +18,7 @@ class FIFOProtocolError(ValueError):
 
 
 class VirtualChannelFIFO:
-    """One bounded, ordered flit FIFO with independent arrival-stream state."""
+    """One bounded, ordered input VC with strict packet-marker checks."""
 
     def __init__(self, depth: int) -> None:
         if isinstance(depth, bool) or not isinstance(depth, int) or depth < 1:
@@ -58,23 +63,33 @@ class VirtualChannelFIFO:
             raise FlitValidationError("a second header arrived before the active tail")
 
     def enqueue(self, flit: Flit) -> None:
+        """Append one legal flit and advance receive-side packet state."""
+
         self.validate_enqueue(flit)
         self._stream.accept(flit)
         self._entries.append(flit)
 
     def peek(self) -> Flit:
+        """Return the oldest buffered flit without releasing its entry."""
+
         if self.empty:
             raise FIFOProtocolError("peek would underflow the FIFO")
         return self._entries[0]
 
     def dequeue(self) -> Flit:
+        """Release and return the oldest buffered flit."""
+
         if self.empty:
             raise FIFOProtocolError("dequeue would underflow the FIFO")
         return self._entries.popleft()
 
     def reset(self) -> None:
+        """Discard buffered traffic and clear the receive packet boundary."""
+
         self._entries.clear()
         self._stream.reset()
 
     def __iter__(self) -> Iterator[Flit]:
+        """Iterate over a stable oldest-to-newest snapshot."""
+
         return iter(tuple(self._entries))
