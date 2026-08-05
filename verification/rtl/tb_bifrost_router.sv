@@ -130,8 +130,19 @@ module tb_bifrost_router;
     input logic [FLIT_W-1:0] expected_flit
   );
     assert (observed_tx_valid == (1 << output_port))
-      else $fatal(1, "expected only output %0d, got %b",
-                  output_port, observed_tx_valid);
+      else $fatal(
+        1,
+        "expected output %0d got=%b empty=%b route_valid=%b route=%0d vc=%0d credit=%0d alloc=%b select=%b",
+        output_port,
+        observed_tx_valid,
+        dut.u_router.fifo_empty[PORT_LOCAL][0],
+        dut.u_router.route_valid[PORT_LOCAL][0],
+        dut.u_router.route_cache[PORT_LOCAL][0],
+        dut.u_router.assigned_vc[PORT_LOCAL][0],
+        dut.u_router.credit_count[output_port][0],
+        dut.u_router.allocation_valid[output_port],
+        dut.u_router.selected_valid[output_port]
+      );
     assert (observed_tx_flit[output_port] == expected_flit)
       else $fatal(1, "flit changed on output %0d expected=%h observed=%h",
                   output_port, expected_flit, observed_tx_flit[output_port]);
