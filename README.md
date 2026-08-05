@@ -1,17 +1,17 @@
 # Bifröst NoC Router
 
 Bifröst is a parameterized, wormhole-switched router for a rectangular 2D
-network-on-chip. This repository contains the accepted Milestone 0 contract
-and the complete Milestone 1 Python architectural oracle for observable Core
-v0.2 behavior.
+network-on-chip. This repository contains the accepted contract, the independent
+Python architectural oracle, and the hand-written Core v0.2 RTL baseline.
 
 The normative source is [`spec/BIFROST_SPEC.md`](spec/BIFROST_SPEC.md).
 Machine-readable configuration and requirement traceability live beside it in
 [`spec/`](spec/). The Markdown specification takes precedence if generated or
 curated documentation disagrees with it.
 
-The Python package layout, component responsibilities, cycle semantics, and
-test commands are documented in [`spec/MODEL_GUIDE.md`](spec/MODEL_GUIDE.md).
+The Python oracle is documented in [`spec/MODEL_GUIDE.md`](spec/MODEL_GUIDE.md).
+RTL module boundaries, cycle timing, assertions, and simulation commands are in
+[`docs/RTL_GUIDE.md`](docs/RTL_GUIDE.md).
 
 ## Frozen selected configuration
 
@@ -51,22 +51,19 @@ four-class weighted/aged policy; it does not add a scheduler.
 
 ## Current milestone
 
-Milestone 1 includes:
+Milestone 2 adds:
 
-- JSON-Schema-validated configuration and cross-file traceability checks.
-- Typed semantic flit and packet-marker validation plus an independent integer
-  pack/unpack helper for the frozen representation.
-- Bounded independent input-VC FIFOs and deterministic XY route caching.
-- Packet-lifetime output-VC allocation with exact tail and head+tail release.
-- Per-flit round-robin arbitration and concurrent nonconflicting transfers.
-- Cycle-level crossbar, registered-credit, reset, and protocol-error behavior.
-- Requirement-linked directed tests and a recorded-seed conservation test.
+- A small shared encoding package and independent per-input-VC FIFO module.
+- Five-port XY routing, output-VC ownership, two-stage arbitration, and 5x5
+  crossbar behavior matching the Python oracle.
+- Registered credit accounting, exact tail release, disabled ports, active-low
+  synchronous reset, and simulation protocol assertions.
+- Directed Verilator simulations plus a recorded-seed conservation/order scoreboard.
 
 The model remains an architectural oracle and intentionally does not mirror
-future RTL signals or reinterpret arbitrary Python payload objects as packed
-bits. RTL, RTL simulation, formal proof, synthesis, PPA evidence, mesh studies,
-QoS behavior, and agentic optimization remain deferred; no placeholder or
-fabricated RTL artifact is committed.
+RTL signals or reinterpret arbitrary Python payload objects as packed bits.
+Formal proof, synthesis, PPA evidence, mesh studies, QoS behavior, and agentic
+optimization remain deferred.
 
 ## Setup and commands
 
@@ -84,6 +81,8 @@ Available targets:
 |---|---|
 | `make spec-check` | Validate schema, configuration, requirements, and mappings |
 | `make model-test` | Run the Python model tests |
+| `make rtl-lint` | Compile and lint the hand-written RTL with Verilator |
+| `make rtl-test` | Run directed, route, seeded scoreboard, and protocol simulations |
 | `make check` | Run all gates available at this milestone |
 | `make clean` | Remove generated Python/build artifacts |
 
@@ -92,6 +91,7 @@ On Windows without `make`, run:
 ```text
 py scripts\validate_spec.py
 py -m pytest model\tests
+verilator --lint-only --timing --assert -Wall -Wno-fatal --top-module bifrost_router rtl\bifrost_pkg.sv rtl\bifrost_route_decode.sv rtl\bifrost_input_vc.sv rtl\bifrost_credit_counter.sv rtl\bifrost_crossbar.sv rtl\bifrost_router.sv
 ```
 
 ## Repository map
@@ -102,6 +102,9 @@ py -m pytest model\tests
 ├── scripts/               Deterministic validation entry points
 ├── model/bifrost_model/   Executable Core v0.2 behavior
 ├── model/tests/           Requirement-linked unit tests
+├── rtl/                   Hand-written Core v0.2 SystemVerilog
+├── verification/rtl/      Deterministic self-checking RTL simulations
+├── docs/                  RTL architecture and timing guide
 └── .github/workflows/     Clean-checkout CI
 ```
 
@@ -112,8 +115,8 @@ real, reviewed artifact.
 
 1. Freeze and independently review the observable contract.
 2. Complete the executable Python router oracle.
-3. Add a clear hand-written RTL baseline.
-4. Add independent simulation and formal verification.
+3. Add a clear hand-written RTL baseline. **Complete**
+4. Expand independent simulation and add formal verification.
 5. Establish reproducible timing, area, power, and traffic evidence.
 6. Stage QoS, then permit bounded agent-proposed optimizations.
 
