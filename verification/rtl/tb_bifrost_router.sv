@@ -113,9 +113,12 @@ module tb_bifrost_router;
     #4;
     if (traced_steps < 5) begin
       $display(
-        "TRACE step=%0d time=%0t tx_east=%b select_east=%b empty=%b route_valid=%b alloc=%b",
+        "TRACE step=%0d time=%0t rx_tb=%b rx_dut=%b head=%b tx_east=%b select_east=%b empty=%b route_valid=%b alloc=%b",
         traced_steps,
         $time,
+        rx_valid[PORT_LOCAL],
+        dut.rx_valid[PORT_LOCAL],
+        dut.rx_flit[PORT_LOCAL][HEAD_BIT],
         tx_valid[PORT_EAST],
         dut.selected_valid[PORT_EAST],
         dut.fifo_empty[PORT_LOCAL][0],
