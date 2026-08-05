@@ -8,16 +8,16 @@ module tb_bifrost_random;
 
   logic clk = 1'b0;
   logic rst_n = 1'b0;
-  logic port_enable [PORTS];
-  logic rx_valid [PORTS];
+  logic [0:0] port_enable [PORTS];
+  logic [0:0] rx_valid [PORTS];
   logic [FLIT_W-1:0] rx_flit [PORTS];
   logic [VC_ID_W-1:0] rx_vc [PORTS];
-  wire tx_valid [PORTS];
+  wire [0:0] tx_valid [PORTS];
   wire [FLIT_W-1:0] tx_flit [PORTS];
   wire [VC_ID_W-1:0] tx_vc [PORTS];
-  wire credit_out_valid [PORTS];
+  wire [0:0] credit_out_valid [PORTS];
   wire [VC_ID_W-1:0] credit_out_vc [PORTS];
-  logic credit_in_valid [PORTS];
+  logic [0:0] credit_in_valid [PORTS];
   logic [VC_ID_W-1:0] credit_in_vc [PORTS];
 
   logic [FLIT_W-1:0] expected [PORTS][NUM_VCS][256];

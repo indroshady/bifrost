@@ -19,16 +19,16 @@ module bifrost_router #(
 ) (
   input  wire                       clk,
   input  wire                       rst_n,
-  input  wire                       port_enable [PORTS],
-  input  wire                       rx_valid [PORTS],
+  input  wire [0:0]                 port_enable [PORTS],
+  input  wire [0:0]                 rx_valid [PORTS],
   input  wire [FLIT_W-1:0]          rx_flit [PORTS],
   input  wire [VC_ID_W-1:0]         rx_vc [PORTS],
-  output wire                       tx_valid [PORTS],
+  output wire [0:0]                 tx_valid [PORTS],
   output wire [FLIT_W-1:0]          tx_flit [PORTS],
   output wire [VC_ID_W-1:0]         tx_vc [PORTS],
-  output wire                       credit_out_valid [PORTS],
+  output wire [0:0]                 credit_out_valid [PORTS],
   output wire [VC_ID_W-1:0]         credit_out_vc [PORTS],
-  input  wire                       credit_in_valid [PORTS],
+  input  wire [0:0]                 credit_in_valid [PORTS],
   input  wire [VC_ID_W-1:0]         credit_in_vc [PORTS]
 );
   import bifrost_pkg::*;

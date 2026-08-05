@@ -20,7 +20,9 @@ initialization, formal proof, synthesis, or PPA claims.
 | `verification/rtl/tb_bifrost_protocol_error.sv` | Expected-failure malformed-stream assertion test |
 
 The external arrays use the frozen unpacked order Local, North, South, East,
-West. Each data entry is packed. There are no ready signals.
+West. One-bit controls use explicit packed `[0:0]` entries under that unpacked
+port dimension for simulator portability; their logical shape remains one bit
+per port. Each data entry is packed. There are no ready signals.
 
 ## State and cycle timing
 
