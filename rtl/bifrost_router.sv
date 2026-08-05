@@ -17,19 +17,19 @@ module bifrost_router #(
   parameter int PORT_ID_W = bifrost_pkg::PORT_ID_W,
   parameter int VC_ID_W = bifrost_pkg::VC_ID_W
 ) (
-  input  wire                       clk,
-  input  wire                       rst_n,
-  input  wire [0:0]                 port_enable [PORTS],
-  input  wire [0:0]                 rx_valid [PORTS],
-  input  wire [FLIT_W-1:0]          rx_flit [PORTS],
-  input  wire [VC_ID_W-1:0]         rx_vc [PORTS],
-  output wire [0:0]                 tx_valid [PORTS],
-  output wire [FLIT_W-1:0]          tx_flit [PORTS],
-  output wire [VC_ID_W-1:0]         tx_vc [PORTS],
-  output wire [0:0]                 credit_out_valid [PORTS],
-  output wire [VC_ID_W-1:0]         credit_out_vc [PORTS],
-  input  wire [0:0]                 credit_in_valid [PORTS],
-  input  wire [VC_ID_W-1:0]         credit_in_vc [PORTS]
+  input  logic                       clk,
+  input  logic                       rst_n,
+  input  logic [0:0]                 port_enable [PORTS],
+  input  logic [0:0]                 rx_valid [PORTS],
+  input  logic [FLIT_W-1:0]          rx_flit [PORTS],
+  input  logic [VC_ID_W-1:0]         rx_vc [PORTS],
+  output logic [0:0]                 tx_valid [PORTS],
+  output logic [FLIT_W-1:0]          tx_flit [PORTS],
+  output logic [VC_ID_W-1:0]         tx_vc [PORTS],
+  output logic [0:0]                 credit_out_valid [PORTS],
+  output logic [VC_ID_W-1:0]         credit_out_vc [PORTS],
+  input  logic [0:0]                 credit_in_valid [PORTS],
+  input  logic [VC_ID_W-1:0]         credit_in_vc [PORTS]
 );
   import bifrost_pkg::*;
 
