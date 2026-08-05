@@ -1,8 +1,12 @@
 `timescale 1ns/1ps
 
-// Hand-written Core v0.2 five-port router. Submodules keep route decode,
-// arbitration, buffering, crossbar, and credit accounting independently
-// readable; this top level owns packet reservations and cycle integration.
+// Hand-written Core v0.2 five-port wormhole router.
+//
+// Input VCs buffer complete flits. A header first reserves one output VC, then
+// switch arbitration forwards eligible flits while preserving that reservation
+// until the packet tail transfers. The top level owns allocation, arbitration,
+// packet reservations, and cycle integration; buffering, route decode, credit
+// accounting, and datapath muxing remain in focused submodules.
 module bifrost_router #(
   parameter int PORTS = bifrost_pkg::PORTS,
   parameter int FLIT_W = bifrost_pkg::FLIT_W,
@@ -37,7 +41,8 @@ module bifrost_router #(
   localparam int OWNER_W = $clog2(OWNER_COUNT);
   localparam int CREDIT_W = $clog2(VC_DEPTH + 1);
 
-  // Ten independent input VCs hold flits and validate receive packet markers.
+  // Ten independent input VCs hold received flits. Route decode is combinational
+  // from each FIFO head and becomes meaningful whenever that FIFO is nonempty.
   logic [FLIT_W-1:0] fifo_head [PORTS][NUM_VCS];
   logic fifo_empty [PORTS][NUM_VCS];
   logic fifo_full [PORTS][NUM_VCS];
@@ -57,7 +62,8 @@ module bifrost_router #(
   logic [CREDIT_W-1:0] credit_count [PORTS][NUM_VCS];
   logic send_for_vc [PORTS][NUM_VCS];
 
-  // Successful-operation-only histories implement deterministic fairness.
+  // Round-robin histories advance only after the operation they arbitrate
+  // succeeds. Failed requests therefore retain their relative priority.
   logic [OWNER_W-1:0] allocation_pointer [PORTS];
   logic [VC_ID_W-1:0] free_vc_pointer [PORTS];
   logic [OWNER_W-1:0] switch_pointer [PORTS];
@@ -175,9 +181,9 @@ module bifrost_router #(
     .output_flit(tx_flit)
   );
 
-  // This block performs the full combinational match from registered state.
-  // Keeping the three phases together makes cycle ordering explicit and avoids
-  // simulator-dependent delta cycles between array-valued arbiter instances.
+  // Full combinational match from registered state. Keeping the phases together
+  // makes cycle ordering explicit and avoids delta-cycle coupling between
+  // array-valued arbiter instances.
   always_comb begin : router_control
     integer output_port;
     integer input_port;
@@ -207,8 +213,9 @@ module bifrost_router #(
         fifo_dequeue[input_port][input_vc] = 1'b0;
     end
 
-    // Phase 1: each output with a free VC independently chooses one buffered,
-    // unallocated header. Both requester and free-VC pointers wrap once.
+    // Phase 1: output-VC allocation. Each enabled output first chooses a free VC
+    // and then chooses one buffered, unallocated header routed to that output.
+    // The two searches use independent round-robin histories.
     for (output_port = 0; output_port < PORTS; output_port++) begin
       found = 1'b0;
       chosen_vc = 0;
@@ -239,8 +246,9 @@ module bifrost_router #(
       end
     end
 
-    // Phase 2: each output proposes its strict per-flit RR winner. Eligibility
-    // uses registered credit_count and intentionally ignores credit_in.
+    // Phase 2: switch proposals. Each output proposes at most one packet that
+    // already owns an output VC, has a buffered flit, and has registered credit.
+    // Same-cycle credit returns are intentionally not bypassed into eligibility.
     for (output_port = 0; output_port < PORTS; output_port++) begin
       found = 1'b0;
       if (port_enable[output_port]) begin
@@ -261,8 +269,9 @@ module bifrost_router #(
       end
     end
 
-    // Phase 3: one proposal per physical input is accepted using that input's
-    // output pointer. Losing outputs do not choose a fallback requester.
+    // Phase 3: input conflict resolution. Multiple outputs can propose flits from
+    // different VCs on one physical input, but the input datapath can service
+    // only one. Losing outputs do not choose a fallback requester this cycle.
     for (input_port = 0; input_port < PORTS; input_port++) begin
       found = 1'b0;
       for (offset = 0; offset < PORTS; offset++) begin
@@ -290,8 +299,9 @@ module bifrost_router #(
     end
   end
 
-  // This sequential block owns packet-level state and fairness history. FIFO
-  // and credit submodules commit their corresponding edge transitions in parallel.
+  // Packet-level state and fairness history. FIFO occupancy and downstream
+  // credits commit in their submodules on this same edge. Assertions are kept in
+  // independent simulation-only blocks after the functional logic.
   always_ff @(posedge clk) begin : packet_state
     integer output_port;
     integer input_port;
@@ -324,8 +334,6 @@ module bifrost_router #(
           owner = allocation_owner[output_port];
           owner_port = owner / NUM_VCS;
           owner_vc = owner % NUM_VCS;
-          assert (!output_vc_owned[output_port][allocation_vc[output_port]])
-            else $fatal(1, "output VC allocated twice");
           output_vc_owned[output_port][allocation_vc[output_port]] <= 1'b1;
           output_vc_owner[output_port][allocation_vc[output_port]] <= owner;
           route_valid[owner_port][owner_vc] <= 1'b1;
@@ -342,9 +350,6 @@ module bifrost_router #(
           owner = selected_owner[output_port];
           owner_port = owner / NUM_VCS;
           owner_vc = owner % NUM_VCS;
-          assert (output_vc_owned[output_port][selected_output_vc[output_port]] &&
-                  output_vc_owner[output_port][selected_output_vc[output_port]] == owner)
-            else $fatal(1, "transfer without matching output VC ownership");
           switch_pointer[output_port] <=
             (owner == OWNER_COUNT-1) ? '0 : owner + 1'b1;
           input_pointer[owner_port] <=
@@ -360,9 +365,33 @@ module bifrost_router #(
     end
   end
 
-  // External and packed-flit checks are simulation protocol assertions. They
-  // deliberately stop malformed traffic rather than claiming recovery behavior.
-  always_ff @(posedge clk) begin : protocol_checks
+`ifndef SYNTHESIS
+  // Internal reservation invariants. These are intentionally separate from
+  // packet_state so the state machine contains only functional assignments.
+  always_ff @(posedge clk) begin : reservation_assertions
+    integer output_port;
+
+    if (rst_n) begin
+      for (output_port = 0; output_port < PORTS; output_port++) begin
+        if (allocation_valid[output_port]) begin
+          assert (!output_vc_owned[output_port][allocation_vc[output_port]])
+            else $fatal(1, "output VC allocated twice");
+        end
+
+        if (selected_valid[output_port]) begin
+          assert (output_vc_owned[output_port][selected_output_vc[output_port]] &&
+                  output_vc_owner[output_port][selected_output_vc[output_port]] ==
+                    selected_owner[output_port])
+            else $fatal(1, "transfer without matching output VC ownership");
+        end
+      end
+    end
+  end
+
+  // External interface and packed-flit protocol checks. The Core contract
+  // treats these conditions as integration errors; the RTL does not attempt
+  // recovery after malformed traffic.
+  always_ff @(posedge clk) begin : interface_assertions
     integer input_port;
     integer input_vc;
     integer output_port;
@@ -401,7 +430,9 @@ module bifrost_router #(
     end
   end
 
-  initial begin
+  // Elaboration-time checks document the subset of parameterization implemented
+  // by the Core v0.2 baseline.
+  initial begin : parameter_assertions
     assert (PORTS == 5 && FLIT_W == 128 && NUM_VCS == 2)
       else $fatal(1, "Core v0.2 frozen interface parameters changed");
     assert (PORT_ID_W == 3 && VC_ID_W == 1)
@@ -410,4 +441,5 @@ module bifrost_router #(
             ROUTER_Y >= 0 && ROUTER_Y < MESH_Y)
       else $fatal(1, "router coordinates outside mesh");
   end
+`endif
 endmodule

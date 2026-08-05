@@ -1,7 +1,10 @@
 `timescale 1ns/1ps
 
-// Pure deterministic XY decode for one buffered header. X is always resolved
-// before Y, and increasing Y maps to North.
+// Pure combinational deterministic XY route decode for one buffered header.
+//
+// Horizontal displacement is always resolved before vertical displacement.
+// Increasing X travels East and increasing Y travels North. A destination equal
+// to the router's coordinates exits through the Local endpoint.
 module bifrost_route_decode #(
   parameter int FLIT_W = bifrost_pkg::FLIT_W,
   parameter int X_W = 1,

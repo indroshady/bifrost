@@ -1,7 +1,11 @@
 `timescale 1ns/1ps
 
-// Readable 5x5 physical crossbar. The selected owner includes its input VC so
-// the mux forwards the exact FIFO head chosen by the switch matcher.
+// Combinational physical-output crossbar.
+//
+// selected_owner is a flattened {input port, input VC} index produced by the
+// router's switch matcher. Each output independently compares that index against
+// every FIFO head and forwards the complete selected flit. Invalid outputs drive
+// zero to keep the datapath deterministic when tx_valid is deasserted.
 module bifrost_crossbar #(
   parameter int PORTS = bifrost_pkg::PORTS,
   parameter int NUM_VCS = bifrost_pkg::NUM_VCS,
