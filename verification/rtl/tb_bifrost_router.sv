@@ -120,8 +120,10 @@ module tb_bifrost_router;
         dut.rx_valid[PORT_LOCAL],
         rx_vc[PORT_LOCAL],
         dut.rx_vc[PORT_LOCAL],
-        dut.fifo_enqueue[PORT_LOCAL][0],
-        dut.fifo_enqueue[PORT_LOCAL][1],
+        dut.g_input[0].g_vc[0].u_fifo.receive_valid &&
+          (dut.g_input[0].g_vc[0].u_fifo.receive_vc == 0),
+        dut.g_input[0].g_vc[1].u_fifo.receive_valid &&
+          (dut.g_input[0].g_vc[1].u_fifo.receive_vc == 1),
         dut.rx_flit[PORT_LOCAL][HEAD_BIT],
         dut.g_input[0].g_vc[0].u_fifo.count,
         tx_valid[PORT_EAST],

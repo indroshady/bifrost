@@ -4,11 +4,14 @@
 // while receive_packet_active tracks packet boundaries across FIFO drain bubbles.
 module bifrost_input_vc #(
   parameter int FLIT_W = 128,
-  parameter int DEPTH = 4
+  parameter int DEPTH = 4,
+  parameter int VC_ID_W = 1,
+  parameter int VC_INDEX = 0
 ) (
   input  logic              clk,
   input  logic              rst_n,
-  input  logic              enqueue,
+  input  logic [0:0]        receive_valid,
+  input  logic [VC_ID_W-1:0] receive_vc,
   input  logic [FLIT_W-1:0] enqueue_flit,
   input  logic              dequeue,
   output logic [FLIT_W-1:0] head_flit,
@@ -39,7 +42,11 @@ module bifrost_input_vc #(
       count <= '0;
       receive_packet_active <= 1'b0;
     end else begin
-      if (enqueue) begin
+      // Decode the physical receive channel at the accepting clock edge. This
+      // keeps the VC selection beside the state it controls and ensures a
+      // simulator need not infer combinational sensitivity through an unpacked
+      // top-level port array.
+      if (receive_valid && (receive_vc == VC_INDEX[VC_ID_W-1:0])) begin
         assert (!full)
           else $fatal(1, "input VC FIFO overflow");
         // Validate the source stream at acceptance, independently of whether an
@@ -68,7 +75,7 @@ module bifrost_input_vc #(
         read_ptr <= (read_ptr == DEPTH-1) ? '0 : read_ptr + 1'b1;
       end
 
-      case ({enqueue, dequeue})
+      case ({receive_valid && (receive_vc == VC_INDEX[VC_ID_W-1:0]), dequeue})
         2'b10: count <= count + 1'b1;
         2'b01: count <= count - 1'b1;
         default: count <= count;
