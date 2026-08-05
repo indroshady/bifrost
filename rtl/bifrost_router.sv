@@ -41,6 +41,7 @@ module bifrost_router #(
   logic [FLIT_W-1:0] fifo_head [PORTS][NUM_VCS];
   logic fifo_empty [PORTS][NUM_VCS];
   logic fifo_full [PORTS][NUM_VCS];
+  logic fifo_enqueue [PORTS][NUM_VCS];
   logic fifo_dequeue [PORTS][NUM_VCS];
   logic [PORT_ID_W-1:0] decoded_route [PORTS][NUM_VCS];
 
@@ -84,8 +85,7 @@ module bifrost_router #(
         logic selected_full;
 
         assign selected_rx_flit = rx_flit[input_port];
-        assign selected_enqueue =
-          rx_valid[input_port] && (rx_vc[input_port] == input_vc);
+        assign selected_enqueue = fifo_enqueue[input_port][input_vc];
         assign selected_dequeue = fifo_dequeue[input_port][input_vc];
         assign fifo_head[input_port][input_vc] = selected_head_flit;
         assign fifo_empty[input_port][input_vc] = selected_empty;
@@ -163,6 +163,19 @@ module bifrost_router #(
       assign credit_out_vc[input_port] = returned_vc;
     end
   endgenerate
+
+  // Decode the external receive channel in one process. Besides making the
+  // one-hot VC selection obvious, this avoids relying on tool-specific
+  // sensitivity inference for generated assignments that index unpacked ports.
+  always_comb begin : receive_vc_decode
+    for (integer input_port = 0; input_port < PORTS; input_port++) begin
+      for (integer input_vc = 0; input_vc < NUM_VCS; input_vc++) begin
+        fifo_enqueue[input_port][input_vc] =
+          rx_valid[input_port] &&
+          (rx_vc[input_port] == input_vc[VC_ID_W-1:0]);
+      end
+    end
+  end
 
   bifrost_crossbar #(
     .PORTS(PORTS),
