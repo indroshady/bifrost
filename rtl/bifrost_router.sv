@@ -55,7 +55,6 @@ module bifrost_router #(
   logic output_vc_owned [PORTS][NUM_VCS];
   logic [OWNER_W-1:0] output_vc_owner [PORTS][NUM_VCS];
   logic [CREDIT_W-1:0] credit_count [PORTS][NUM_VCS];
-  logic downstream_return [PORTS][NUM_VCS];
   logic send_for_vc [PORTS][NUM_VCS];
 
   // Successful-operation-only histories implement deterministic fairness.
@@ -121,22 +120,22 @@ module bifrost_router #(
 
     for (genvar output_port = 0; output_port < PORTS; output_port++) begin : g_output
       for (genvar output_vc = 0; output_vc < NUM_VCS; output_vc++) begin : g_vc
-        assign downstream_return[output_port][output_vc] =
-          credit_in_valid[output_port] &&
-          (credit_in_vc[output_port] == output_vc);
         assign send_for_vc[output_port][output_vc] =
           selected_valid[output_port] &&
           (selected_output_vc[output_port] == output_vc);
 
         bifrost_credit_counter #(
           .DEPTH(VC_DEPTH),
-          .COUNT_W(CREDIT_W)
+          .COUNT_W(CREDIT_W),
+          .VC_ID_W(VC_ID_W),
+          .VC_INDEX(output_vc)
         ) u_credit (
           .clk,
           .rst_n,
           .enabled(port_enable[output_port]),
           .send(send_for_vc[output_port][output_vc]),
-          .credit_return(downstream_return[output_port][output_vc]),
+          .credit_in_valid(credit_in_valid[output_port]),
+          .credit_in_vc(credit_in_vc[output_port]),
           .count(credit_count[output_port][output_vc])
         );
       end
