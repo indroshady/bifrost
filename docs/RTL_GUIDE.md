@@ -13,7 +13,7 @@ initialization, formal proof, synthesis, or PPA claims.
 | `rtl/bifrost_input_vc.sv` | One bounded FIFO plus receive packet-boundary state |
 | `rtl/bifrost_credit_counter.sv` | One registered downstream-VC credit truth table |
 | `rtl/bifrost_crossbar.sv` | Explicit five-output complete-flit muxing |
-| `rtl/bifrost_router.sv` | Output-VC ownership, matching, reset, protocol assertions, and block integration |
+| `rtl/bifrost_router.sv` | Output-VC ownership, matching, reset, and block integration |
 | `verification/rtl/tb_bifrost_router.sv` | Directed integrated Core transitions |
 | `verification/rtl/tb_bifrost_routes.sv` | East/West/North/South/Local XY decode |
 | `verification/rtl/tb_bifrost_random.sv` | Recorded-seed independent conservation/order scoreboard |
@@ -62,6 +62,11 @@ packet-marker sequences, nonzero body/tail header fields, nonzero Core QoS,
 disabled-port traffic or credits, invalid ownership transitions, zero-credit
 transmission, and credit overflow. These checks are verification aids, not a
 formal-completeness claim.
+
+Assertion blocks are separated from functional state-update blocks and protected
+by preprocessor guards keyed on `SYNTHESIS`. Simulation and lint builds leave
+the macro undefined so the checks remain active. Synthesis flows should define
+`SYNTHESIS` to exclude assertion and diagnostic logic from the compiled design.
 
 The random test uses recorded seed `0x0B1F205E`, tracks every accepted flit in
 an independent per-input-VC queue, derives XY output expectations directly from

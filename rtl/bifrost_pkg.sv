@@ -1,9 +1,9 @@
 `timescale 1ns/1ps
 
 package bifrost_pkg;
-  // Core v0.2 fixes the externally visible widths and numeric encodings. The
-  // router repeats these as overridable parameters only for compile-time checks
-  // and integration readability; this baseline intentionally supports Core.
+  // Core v0.2 fixes the externally visible widths and numeric encodings. RTL
+  // modules repeat selected values as parameters for integration readability,
+  // but simulation assertions reject configurations outside this baseline.
   parameter int PORTS = 5;
   parameter int FLIT_W = 128;
   parameter int NUM_VCS = 2;
@@ -19,8 +19,9 @@ package bifrost_pkg;
     PORT_WEST  = 3'd4
   } port_id_t;
 
-  // Frozen packed-flit positions. Keeping the names in one package prevents
-  // route decode, protocol checks, and tests from drifting to duplicate layouts.
+  // Frozen packed-flit positions. Header-only fields span DEST_X_BIT through
+  // QOS_LSB; body and tail flits must drive that range to zero. Keeping these
+  // names centralized prevents RTL and testbench field layouts from drifting.
   localparam int HEAD_BIT = 127;
   localparam int TAIL_BIT = 126;
   localparam int DEST_X_BIT = 125;
