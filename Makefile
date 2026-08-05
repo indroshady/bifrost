@@ -8,7 +8,6 @@ RTL_SOURCES := rtl/bifrost_pkg.sv \
 	rtl/bifrost_crossbar.sv \
 	rtl/bifrost_router.sv
 SIM_BUILD := sim_build
-RTL_TB_ADAPTER := verification/rtl/bifrost_router_tb_adapter.sv
 
 .PHONY: spec-check model-test rtl-lint rtl-test check clean
 
@@ -25,13 +24,13 @@ rtl-lint: | $(SIM_BUILD)
 	$(VERILATOR) --lint-only --timing --assert -Wall -Wno-fatal --top-module bifrost_router $(RTL_SOURCES)
 
 rtl-test: rtl-lint
-	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_router --Mdir $(SIM_BUILD)/directed $(RTL_SOURCES) $(RTL_TB_ADAPTER) verification/rtl/tb_bifrost_router.sv
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_router --Mdir $(SIM_BUILD)/directed $(RTL_SOURCES) verification/rtl/tb_bifrost_router.sv
 	$(SIM_BUILD)/directed/Vtb_bifrost_router
-	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_routes --Mdir $(SIM_BUILD)/routes $(RTL_SOURCES) $(RTL_TB_ADAPTER) verification/rtl/tb_bifrost_routes.sv
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_routes --Mdir $(SIM_BUILD)/routes $(RTL_SOURCES) verification/rtl/tb_bifrost_routes.sv
 	$(SIM_BUILD)/routes/Vtb_bifrost_routes
-	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_random --Mdir $(SIM_BUILD)/random $(RTL_SOURCES) $(RTL_TB_ADAPTER) verification/rtl/tb_bifrost_random.sv
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_random --Mdir $(SIM_BUILD)/random $(RTL_SOURCES) verification/rtl/tb_bifrost_random.sv
 	$(SIM_BUILD)/random/Vtb_bifrost_random
-	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_protocol_error --Mdir $(SIM_BUILD)/protocol $(RTL_SOURCES) $(RTL_TB_ADAPTER) verification/rtl/tb_bifrost_protocol_error.sv
+	$(VERILATOR) $(VERILATOR_FLAGS) --top-module tb_bifrost_protocol_error --Mdir $(SIM_BUILD)/protocol $(RTL_SOURCES) verification/rtl/tb_bifrost_protocol_error.sv
 	@if $(SIM_BUILD)/protocol/Vtb_bifrost_protocol_error >$(SIM_BUILD)/protocol.log 2>&1; then \
 		cat $(SIM_BUILD)/protocol.log; \
 		echo "protocol violation simulation unexpectedly passed"; \

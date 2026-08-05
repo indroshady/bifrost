@@ -15,7 +15,6 @@ initialization, formal proof, synthesis, or PPA claims.
 | `rtl/bifrost_crossbar.sv` | Explicit five-output complete-flit muxing |
 | `rtl/bifrost_router.sv` | Output-VC ownership, matching, reset, protocol assertions, and block integration |
 | `verification/rtl/tb_bifrost_router.sv` | Directed integrated Core transitions |
-| `verification/rtl/bifrost_router_tb_adapter.sv` | Packed testbench mask adapter around the frozen unpacked interface |
 | `verification/rtl/tb_bifrost_routes.sv` | East/West/North/South/Local XY decode |
 | `verification/rtl/tb_bifrost_random.sv` | Recorded-seed independent conservation/order scoreboard |
 | `verification/rtl/tb_bifrost_protocol_error.sv` | Expected-failure malformed-stream assertion test |

@@ -5,16 +5,16 @@ module tb_bifrost_router;
 
   logic clk = 1'b0;
   logic rst_n = 1'b0;
-  logic [PORTS-1:0] port_enable;
-  logic [PORTS-1:0] rx_valid;
+  logic port_enable [PORTS];
+  logic rx_valid [PORTS];
   logic [FLIT_W-1:0] rx_flit [PORTS];
   logic [VC_ID_W-1:0] rx_vc [PORTS];
-  wire [PORTS-1:0] tx_valid;
+  wire tx_valid [PORTS];
   wire [FLIT_W-1:0] tx_flit [PORTS];
   wire [VC_ID_W-1:0] tx_vc [PORTS];
-  wire [PORTS-1:0] credit_out_valid;
+  wire credit_out_valid [PORTS];
   wire [VC_ID_W-1:0] credit_out_vc [PORTS];
-  logic [PORTS-1:0] credit_in_valid;
+  logic credit_in_valid [PORTS];
   logic [VC_ID_W-1:0] credit_in_vc [PORTS];
 
   logic [PORTS-1:0] observed_tx_valid;
@@ -23,7 +23,7 @@ module tb_bifrost_router;
   logic [PORTS-1:0] observed_credit_valid;
   logic [VC_ID_W-1:0] observed_credit_vc [PORTS];
 
-  bifrost_router_tb_adapter dut (
+  bifrost_router dut (
     .clk,
     .rst_n,
     .port_enable,
@@ -135,13 +135,13 @@ module tb_bifrost_router;
         "expected output %0d got=%b empty=%b route_valid=%b route=%0d vc=%0d credit=%0d alloc=%b select=%b",
         output_port,
         observed_tx_valid,
-        dut.u_router.fifo_empty[PORT_LOCAL][0],
-        dut.u_router.route_valid[PORT_LOCAL][0],
-        dut.u_router.route_cache[PORT_LOCAL][0],
-        dut.u_router.assigned_vc[PORT_LOCAL][0],
-        dut.u_router.credit_count[output_port][0],
-        dut.u_router.allocation_valid[output_port],
-        dut.u_router.selected_valid[output_port]
+        dut.fifo_empty[PORT_LOCAL][0],
+        dut.route_valid[PORT_LOCAL][0],
+        dut.route_cache[PORT_LOCAL][0],
+        dut.assigned_vc[PORT_LOCAL][0],
+        dut.credit_count[output_port][0],
+        dut.allocation_valid[output_port],
+        dut.selected_valid[output_port]
       );
     assert (observed_tx_flit[output_port] == expected_flit)
       else $fatal(1, "flit changed on output %0d expected=%h observed=%h",
