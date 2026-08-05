@@ -41,7 +41,6 @@ module bifrost_router #(
   logic [FLIT_W-1:0] fifo_head [PORTS][NUM_VCS];
   logic fifo_empty [PORTS][NUM_VCS];
   logic fifo_full [PORTS][NUM_VCS];
-  logic fifo_enqueue [PORTS][NUM_VCS];
   logic fifo_dequeue [PORTS][NUM_VCS];
   logic [PORT_ID_W-1:0] decoded_route [PORTS][NUM_VCS];
 
@@ -79,12 +78,15 @@ module bifrost_router #(
       for (genvar input_vc = 0; input_vc < NUM_VCS; input_vc++) begin : g_vc
         logic [FLIT_W-1:0] selected_rx_flit;
         logic [FLIT_W-1:0] selected_head_flit;
+        logic selected_enqueue;
+        logic selected_dequeue;
         logic selected_empty;
         logic selected_full;
 
         assign selected_rx_flit = rx_flit[input_port];
-        assign fifo_enqueue[input_port][input_vc] =
+        assign selected_enqueue =
           rx_valid[input_port] && (rx_vc[input_port] == input_vc);
+        assign selected_dequeue = fifo_dequeue[input_port][input_vc];
         assign fifo_head[input_port][input_vc] = selected_head_flit;
         assign fifo_empty[input_port][input_vc] = selected_empty;
         assign fifo_full[input_port][input_vc] = selected_full;
@@ -95,9 +97,9 @@ module bifrost_router #(
         ) u_fifo (
           .clk,
           .rst_n,
-          .enqueue(fifo_enqueue[input_port][input_vc]),
+          .enqueue(selected_enqueue),
           .enqueue_flit(selected_rx_flit),
-          .dequeue(fifo_dequeue[input_port][input_vc]),
+          .dequeue(selected_dequeue),
           .head_flit(selected_head_flit),
           .empty(selected_empty),
           .full(selected_full)
