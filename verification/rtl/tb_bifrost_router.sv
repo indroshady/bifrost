@@ -41,6 +41,18 @@ module tb_bifrost_router;
 
   always #5 clk = ~clk;
 
+  // Capture the unconditional transfer event on its defining rising edge,
+  // before the DUT's nonblocking FIFO and reservation updates take effect.
+  always @(posedge clk) begin
+    for (int port = 0; port < PORTS; port++) begin
+      observed_tx_valid[port] = tx_valid[port];
+      observed_tx_flit[port] = tx_flit[port];
+      observed_tx_vc[port] = tx_vc[port];
+      observed_credit_valid[port] = credit_out_valid[port];
+      observed_credit_vc[port] = credit_out_vc[port];
+    end
+  end
+
   function automatic logic [FLIT_W-1:0] header(
     input logic tail,
     input logic destination_x,
@@ -98,13 +110,6 @@ module tb_bifrost_router;
 
   task automatic step;
     #4;
-    for (int port = 0; port < PORTS; port++) begin
-      observed_tx_valid[port] = tx_valid[port];
-      observed_tx_flit[port] = tx_flit[port];
-      observed_tx_vc[port] = tx_vc[port];
-      observed_credit_valid[port] = credit_out_valid[port];
-      observed_credit_vc[port] = credit_out_vc[port];
-    end
     @(posedge clk);
     #1;
     clear_inputs();

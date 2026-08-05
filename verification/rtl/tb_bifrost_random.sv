@@ -36,6 +36,18 @@ module tb_bifrost_random;
   bifrost_router dut (.*);
   always #5 clk = ~clk;
 
+  // Sample transfer and dequeue-credit events at the edge they commit. The
+  // scoreboard consumes this snapshot after nonblocking DUT updates settle.
+  always @(posedge clk) begin
+    for (int port = 0; port < PORTS; port++) begin
+      sampled_tx_valid[port] = tx_valid[port];
+      sampled_tx_flit[port] = tx_flit[port];
+      sampled_tx_vc[port] = tx_vc[port];
+      sampled_credit_valid[port] = credit_out_valid[port];
+      sampled_credit_vc[port] = credit_out_vc[port];
+    end
+  end
+
   function automatic logic [31:0] next_lfsr(input logic [31:0] value);
     next_lfsr = {value[30:0], value[31] ^ value[21] ^ value[1] ^ value[0]};
   endfunction
@@ -75,13 +87,6 @@ module tb_bifrost_random;
 
   task automatic sample_and_commit;
     #4;
-    for (int port = 0; port < PORTS; port++) begin
-      sampled_tx_valid[port] = tx_valid[port];
-      sampled_tx_flit[port] = tx_flit[port];
-      sampled_tx_vc[port] = tx_vc[port];
-      sampled_credit_valid[port] = credit_out_valid[port];
-      sampled_credit_vc[port] = credit_out_vc[port];
-    end
     @(posedge clk);
     #1;
     @(negedge clk);
