@@ -22,6 +22,7 @@ module tb_bifrost_router;
   logic [VC_ID_W-1:0] observed_tx_vc [PORTS];
   logic [PORTS-1:0] observed_credit_valid;
   logic [VC_ID_W-1:0] observed_credit_vc [PORTS];
+  integer traced_steps = 0;
 
   bifrost_router dut (
     .clk,
@@ -110,6 +111,19 @@ module tb_bifrost_router;
 
   task automatic step;
     #4;
+    if (traced_steps < 5) begin
+      $display(
+        "TRACE step=%0d time=%0t tx_east=%b select_east=%b empty=%b route_valid=%b alloc=%b",
+        traced_steps,
+        $time,
+        tx_valid[PORT_EAST],
+        dut.selected_valid[PORT_EAST],
+        dut.fifo_empty[PORT_LOCAL][0],
+        dut.route_valid[PORT_LOCAL][0],
+        dut.allocation_valid[PORT_EAST]
+      );
+    end
+    traced_steps++;
     @(posedge clk);
     #1;
     clear_inputs();
