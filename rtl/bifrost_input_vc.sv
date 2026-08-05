@@ -92,9 +92,8 @@ module bifrost_input_vc #(
   always_ff @(posedge clk) begin : input_vc_assertions
     if (rst_n) begin
       if (receive_valid && (receive_vc == VC_INDEX[VC_ID_W-1:0])) begin
-        assert (!full)
+        assert (!full || dequeue)
           else $fatal(1, "input VC FIFO overflow");
-
         // An idle VC must receive a head. An active packet must receive a
         // body/tail flit rather than another head.
         assert ((!receive_packet_active && enqueue_flit[HEAD_BIT]) ||
